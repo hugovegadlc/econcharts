@@ -300,8 +300,12 @@ def _coerce_periods(col: pd.Series, name: str) -> list:
     if dt.notna().sum() == 0:
         raise DataError(f"series {name!r}: could not interpret period column ({col.name!r})")
     freq = _infer_period_freq(dt.dropna())
-    out = [t.to_period(freq) if pd.notna(t) else pd.NaT for t in dt]
-    return _check_duplicate_periods(out, name)
+    if freq == "W":
+        raise DataError(
+            f"series {name!r}: data appears to be weekly (median spacing ~7 days), "
+            f"which is not a supported frequency — aggregate to monthly or quarterly first"
+        )
+    return [t.to_period(freq) if pd.notna(t) else pd.NaT for t in dt]
 
 
 def _check_duplicate_periods(periods: list, name: str) -> list:
@@ -333,7 +337,8 @@ def _infer_period_freq(dt: pd.Series) -> str:
     """Guess D/M/Q/Y from the median spacing of a datetime series.
 
     Daily allows for weekend/holiday gaps (business-day data medians ~1-3 days),
-    so the threshold sits comfortably below weekly.
+    so the D threshold sits comfortably below weekly. Weekly spacing (~7 days)
+    is not a supported freq — the caller raises on "W".
     """
     days = dt.sort_values().diff().dropna().dt.days
     if len(days) == 0:
@@ -341,6 +346,8 @@ def _infer_period_freq(dt: pd.Series) -> str:
     med = float(days.median())
     if med <= 3:
         return "D"
+    if med <= 10:
+        return "W"   # sentinel: caller raises DataError
     if med <= 45:
         return "M"
     if med <= 200:
