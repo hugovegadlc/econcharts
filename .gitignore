@@ -1,5 +1,6 @@
 # Proprietary source material — do NOT publish
 bbva source/
+macro source/
 *.xlam
 
 # Build / ship artifacts (regenerable). ship/econcharts.spec + ship/build.py +
