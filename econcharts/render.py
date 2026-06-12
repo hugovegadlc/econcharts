@@ -92,7 +92,17 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
     theme = load_theme(spec.theme)
     long_df, window = _resolve_framed(spec, data_root)
 
-    with theme.style():
+    # Validate spec.style overrides before any drawing — a bad rcParam key or
+    # value surfaces here as a RenderError, not a cryptic matplotlib traceback.
+    if spec.style:
+        try:
+            with plt.style.context(spec.style):
+                pass
+        except (KeyError, ValueError) as e:
+            raise RenderError(f"style: invalid rcParam override — {e}") from None
+
+    rc = {**theme.rc, **spec.style} if spec.style else theme.rc
+    with plt.style.context(rc):
         # constrained layout fits content (title, ticks, legend) by resizing the
         # AXES inside a fixed-size figure — the figure never grows to fit content.
         fig, ax = plt.subplots(figsize=theme.figsize(size), layout="constrained")
