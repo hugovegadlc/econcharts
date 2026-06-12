@@ -26,6 +26,7 @@ colors:
   ink:        "#072146"   # dark brand navy — body text / axis labels
   slate:      "#46536D"   # legend + grey-annotation text
   amber:      "#B98409"   # auxColor 14 — orange-annotation label
+  leadergrey: "#9AA3B0"   # leader lines for spread right-labels (between structural and slate)
 
 # --- series prop_cycle, by NAME (order matters) -------------------------------
 cycle: [blue, lightblue, green, orange, yellow, cyan, purple, grey, red, teal, gold, darkgreen]

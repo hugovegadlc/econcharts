@@ -112,13 +112,13 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         _apply_axes(ax, spec, long_df, has_bars, window, theme)
         if ax2 is not None:
             _apply_secondary_axis(ax2, spec)
-        _apply_titles(ax, spec)
+        _apply_titles(ax, spec, theme)
         _apply_legend(fig, ax, ax2, spec)
         # marks (dots/value labels): hide stacked labels that don't fit their
         # segment, then grow the axis limits so edge labels aren't clipped.
         for a in (ax, ax2):
             if a is not None:
-                _finalize_marks(a)
+                _finalize_marks(a, theme)
     return fig
 
 
@@ -236,7 +236,7 @@ def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
         _marks.draw_line_marks(ax, line_marks, mark_decimals)
 
 
-def _finalize_marks(ax) -> None:
+def _finalize_marks(ax, theme: Theme) -> None:
     """Post-draw mark cleanup: hide stacked labels that don't fit their segment,
     then grow xlim/ylim so the remaining dots/labels aren't clipped at an edge.
     """
@@ -279,7 +279,7 @@ def _finalize_marks(ax) -> None:
 
     # 1c) right-of-endpoint labels (3+ lines at the last point): if their endpoints
     #     are too close, spread them evenly (value order kept) with leader lines.
-    if _spread_right_labels(ax, renderer):
+    if _spread_right_labels(ax, renderer, theme):
         moved = True
     if moved:
         fig.draw_without_rendering()
@@ -312,7 +312,7 @@ def _finalize_marks(ax) -> None:
     ax.set_ylim(ymin, ymax) if y0 <= y1 else ax.set_ylim(ymax, ymin)
 
 
-def _spread_right_labels(ax, renderer) -> bool:
+def _spread_right_labels(ax, renderer, theme: Theme) -> bool:
     """Vertically separate right-of-endpoint labels when their points are too
     close, preserving value order, and draw a leader from each label to its point.
     Returns True if anything moved (so the caller re-measures)."""
@@ -337,7 +337,7 @@ def _spread_right_labels(ax, renderer) -> bool:
         dx, _ = L.xyann
         L.xyann = (dx, (ty - ady) / dpi72)                 # move label to its slot
         ex, ey = ax.transData.inverted().transform((adx + dx * dpi72, ty))
-        leader, = ax.plot([xi, ex], [yi, ey], color="#9aa3b0", lw=0.6, zorder=3.8)
+        leader, = ax.plot([xi, ex], [yi, ey], color=theme.colors["leadergrey"], lw=0.6, zorder=3.8)
         leader.set_gid(_marks.MARK_GID)
         leader.set_in_layout(False)
     return True
@@ -446,7 +446,7 @@ def _set_period_ticks(ax, periods: list[pd.Period], *, boundary_marks: bool,
     ax.tick_params(axis="x", which="minor", length=0)
 
 
-def _apply_titles(ax, spec: Spec) -> None:
+def _apply_titles(ax, spec: Spec, theme: Theme) -> None:
     # `source` is kept as spec metadata but intentionally NOT drawn: the BBVA
     # chart formatter never renders a source on the chart (it lives on the
     # slide/worksheet beside it). See spec.Spec.source.
@@ -461,13 +461,13 @@ def _apply_titles(ax, spec: Spec) -> None:
                 spec.subtitle,
                 xy=(0, 1), xycoords="axes fraction",
                 xytext=(0, 5), textcoords="offset points",
-                ha="left", va="bottom", fontsize=8, color="#46536d", wrap=True,
+                ha="left", va="bottom", fontsize=8, color=theme.colors["slate"], wrap=True,
             )
     elif spec.subtitle:
         # subtitle but no title: render it in the title slot with subtitle style
         # so its height is still reserved.
         ax.set_title(spec.subtitle, pad=8, wrap=True,
-                     fontsize=8, color="#46536d", fontweight="normal")
+                     fontsize=8, color=theme.colors["slate"], fontweight="normal")
 
 
 def _apply_legend(fig, ax, ax2, spec: Spec) -> None:
