@@ -2,12 +2,12 @@
 bbva source/
 *.xlam
 
-# Build / ship artifacts (regenerable)
+# Build / ship artifacts (regenerable). ship/econcharts.spec + ship/build.py +
+# ship/launch.py are checked in (the bundle manifest) — only outputs are ignored.
 ship/venv/
 ship/build/
 ship/dist/
 ship/buildlog.txt
-ship/*.spec
 mock_ship/build/
 mock_ship/dist/
 mock_ship/venv/
