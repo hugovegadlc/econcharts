@@ -218,7 +218,6 @@ class EsPeNumber(Formatter):
     """
 
     def set_locs(self, locs):
-        self.locs = locs
         steps = [abs(b - a) for a, b in zip(sorted(locs), sorted(locs)[1:]) if b != a]
         step = min(steps) if steps else 1.0
         self._decimals = 0 if step >= 1 else int(math.ceil(-math.log10(step)))
