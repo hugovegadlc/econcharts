@@ -187,6 +187,14 @@ class Spec(BaseModel):
     # Escape hatch: raw rcParam / axis overrides. Rarely touched.
     style: dict[str, Any] = Field(default_factory=dict)
 
+    @model_validator(mode="after")
+    def _unique_series_names(self):
+        names = [s.name for s in self.series]
+        dupes = sorted({n for n in names if names.count(n) > 1})
+        if dupes:
+            raise ValueError(f"duplicate series names: {', '.join(dupes)}")
+        return self
+
     @field_validator("annotations", mode="before")
     @classmethod
     def _recognize_annotations(cls, v):
