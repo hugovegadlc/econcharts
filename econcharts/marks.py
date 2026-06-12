@@ -18,6 +18,7 @@ the local slope by a constant gap and spreads cramped right labels with leaders.
 from __future__ import annotations
 
 import math
+import warnings
 
 from econcharts.data import parse_period
 from econcharts.theme import es_pe, value_decimals
@@ -37,7 +38,14 @@ def draw_marks(ax, series, periods, x, y, color, decimals, ctx, geom, theme) -> 
     mark = series.mark
     if mark is None:
         return
-    for i in _resolve_points(mark.at, periods):
+    indices = _resolve_points(mark.at, periods)
+    if not indices and mark.at not in ("all", "last"):
+        warnings.warn(
+            f"series {series.name!r}: mark.at {mark.at!r} matched no periods "
+            f"(outside the window or wrong token?)",
+            UserWarning, stacklevel=2,
+        )
+    for i in indices:
         if series.type == "bar":
             index, count = geom["group"]
             offset = (index - (count - 1) / 2) * (ctx.step * ctx.bar_width_frac / count)
@@ -54,7 +62,14 @@ def draw_line_marks(ax, line_series, decimals) -> None:
     maximum goes above and a local minimum below (labels sit on the outer side)."""
     points = []  # (xi, yi, color, mark, x_array, y_array, idx)
     for series, periods, x, y, color in line_series:
-        for i in _resolve_points(series.mark.at, periods):
+        indices = _resolve_points(series.mark.at, periods)
+        if not indices and series.mark.at not in ("all", "last"):
+            warnings.warn(
+                f"series {series.name!r}: mark.at {series.mark.at!r} matched no periods "
+                f"(outside the window or wrong token?)",
+                UserWarning, stacklevel=2,
+            )
+        for i in indices:
             points.append((x[i], y[i], color, series.mark, x, y, i))
     groups: dict = {}
     for p in points:

@@ -68,7 +68,11 @@ def _build(args) -> int:
     if existing and not args.force:
         where = jobs[0].output_path.parent
         print(f"{len(existing)} of {len(jobs)} figure(s) already exist in {where}.")
-        if input("Overwrite them? [y/N] ").strip().lower() not in ("y", "yes"):
+        try:
+            answer = input("Overwrite them? [y/N] ").strip().lower()
+        except EOFError:
+            answer = ""
+        if answer not in ("y", "yes"):
             print("Aborted; nothing written.")
             return 1
 
