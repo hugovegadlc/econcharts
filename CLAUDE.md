@@ -74,7 +74,7 @@ Ref grammar dispatched by prefix: `excel:<file>#<sheet>!<column>` (implemented);
 
 ## Theme
 - A theme = one `themes/<name>.yaml` (single source of truth): named `colors` table, series `cycle`, `annotations` vocabulary, `date_labels` patterns, matplotlib `rc` params. `theme.py` is the generic engine — it resolves color NAMES→hex everywhere and applies rc in memory (no `.mplstyle` on disk).
-- **Never hard-code a color in renderers** — pull from the active theme. (Known violations to clean up: subtitle/leader colors in `render.py`, contrast pair in `theme.label_contrast_color`.)
+- **Never hard-code a color in renderers** — pull from the active theme.
 - `bbva` is the reference theme; primary `#001391`, extracted from the official `Addin_BBVA_2025.xlam` (May 2025, "Version 3").
 - **Named output sizes** (the add-in's export presets, physical mm): `word_half` 75×60, `word_full` 117×60, `slides_half` 85×70 (**default — use this when showing examples**), `slides_full` 140×75. Size and backend are render-time choices (one spec → many targets), not spec fields.
 

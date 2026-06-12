@@ -203,7 +203,7 @@ charts:
     <tr><td><code>date_label</code></td><td>Pick a date-label style by name (see <a href="#vocab">vocabularies</a>).</td></tr>
     <tr><td><code>series</code></td><td><strong>Required.</strong> One or more series — see below.</td></tr>
     <tr><td><code>annotations</code></td><td>Reference lines, bands, shaded periods (see <a href="#spec-annotations">Annotations</a>).</td></tr>
-    <tr><td><code>style</code></td><td>Escape hatch for raw matplotlib overrides. Rarely needed.</td></tr>
+    <tr><td><code>style</code></td><td>Escape hatch: a map of raw <a href="#style-escape">matplotlib rcParam overrides</a>. Rarely needed.</td></tr>
   </table>
 
   <h3 id="spec-series">Series</h3>
@@ -311,7 +311,7 @@ charts:
     <div class="swatch"><span class="dot" style="background:#024700"></span><span><span class="nm">darkgreen</span> <span class="hx">#024700</span></span></div>
   </div>
   <p>Plus structural shades used for text and accents — <code>structural</code>, <code>ink</code>,
-  <code>slate</code>, <code>amber</code> — also selectable by name.</p>
+  <code>slate</code>, <code>amber</code>, <code>leadergrey</code>, <code>white</code> — also selectable by name.</p>
 
   <h3>Line style · <code>line</code></h3>
   <table class="keys">
@@ -344,6 +344,19 @@ charts:
   <div class="note"><strong>The cascade.</strong> A named choice resolves most-general to
   most-specific: <em>theme default → batch header → individual chart</em>. So a deck can default to
   one quarter-label style and a single chart override it.</div>
+
+  <h3 id="style-escape">The <code>style:</code> escape hatch</h3>
+  <p>When the named vocabularies above don't cover a one-off need, <code>style:</code> accepts a map
+  of raw <a href="https://matplotlib.org/stable/users/explain/customizing.html" target="_blank">matplotlib rcParam</a>
+  names and values. They are merged on top of the theme for that chart only — the theme file is
+  untouched.</p>
+  <pre><code>style:
+  axes.ymargin: 0.15       # extra breathing room above/below the data
+  ytick.major.size: 4      # longer y-tick marks
+  lines.linewidth: 1.5     # thinner lines for this chart only</code></pre>
+  <p>A bad key or value is reported as an error before any drawing starts. Use sparingly —
+  every <code>style:</code> override is a form choice that belongs in the theme if it appears
+  on more than one chart.</p>
 </section>
 <section id="batch">
   <h2>Batches &amp; decks</h2>
