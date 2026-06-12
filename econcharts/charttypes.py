@@ -1,23 +1,31 @@
-"""Per-series renderers, dispatched by `Series.type`.
+"""Per-series chart types: drawing primitives + the strategy classes binding them
+to spec series.
 
-Each renderer draws ONE series onto a shared Axes. All series share an x grid of
-matplotlib date numbers (period -> date2num); a `RenderContext` carries the
-common geometry (spacing between periods) so bars can size themselves.
+`CHART_TYPES` maps a spec `type` to its ChartType singleton — the ONE dispatch
+point for everything type-specific: how a series draws (including stacking and
+bar dodging, via the shared `GroupState`) and how its value marks place (using
+the placement primitives in `marks`). render walks series in spec order and
+defers to these classes; adding a chart type (e.g. `fan`) is one new class here,
+not parallel switches across modules.
 
-Stacking and secondary-axis handling arrive in later chunks; for now each
-renderer is independent.
+All series share an x grid of matplotlib date numbers (period -> date2num); a
+`RenderContext` carries the common geometry (spacing between periods) so bars
+can size themselves.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional, Union
 
 import numpy as np
 from scipy.interpolate import PchipInterpolator
 
+from econcharts import marks
+from econcharts.errors import EconchartsError
 
-class ChartTypeError(ValueError):
+
+class ChartTypeError(EconchartsError):
     """A series asked for a chart type the renderer doesn't support yet."""
 
 
@@ -30,27 +38,43 @@ class RenderContext:
     bar_group_gap: float = 0.18  # gap between dodged bars within a group (frac of sub-slot)
 
 
+@dataclass
+class GroupState:
+    """Mutable cross-series accumulators for one axis group.
+
+    Bars need their dodge slot among the group's bars; each area/stacked layer
+    stacks on the running totals left by the layers drawn before it.
+    """
+
+    bar_count: int = 0           # bars in this group (known up front)
+    bar_seen: int = 0            # bars drawn so far -> the next bar's dodge slot
+    area_cum: dict = field(default_factory=dict)   # period -> cumulative area top
+    pos_cum: dict = field(default_factory=dict)    # period -> stacked +ve running top
+    neg_cum: dict = field(default_factory=dict)    # period -> stacked -ve running bottom
+
+
+# Per-type geometry captured at draw time, consumed by mark placement.
+@dataclass(frozen=True)
+class BarGeom:
+    index: int                   # this bar's dodge slot among the group's bars
+    count: int
+
+
+@dataclass(frozen=True)
+class AreaGeom:
+    top: np.ndarray              # the layer's upper boundary (base + values)
+
+
+@dataclass(frozen=True)
+class StackedGeom:
+    bottoms: np.ndarray          # per-point baseline the layer sits on
+    vals: np.ndarray             # per-point heights (NaN coerced to 0)
+
+
+Geom = Optional[Union[BarGeom, AreaGeom, StackedGeom]]
+
 # Stroke vocabulary (spec `line:`) -> matplotlib linestyle.
 LINESTYLES = {"solid": "-", "dashed": "--", "dotted": ":"}
-
-
-def draw(ax, kind: str, x, y, color: str, label: str, ctx: RenderContext,
-         group: tuple[int, int] = (0, 1), linestyle: str = "-") -> None:
-    """Dispatch one series to its renderer.
-
-    `group` = (index, count) of this series among same-type series that share the
-    period slot (used by `bar` to dodge side-by-side). Ignored by line/area.
-    `linestyle` applies to line series only.
-    """
-    renderer = _RENDERERS.get(kind)
-    if renderer is None:
-        supported = ", ".join(sorted(_RENDERERS))
-        raise ChartTypeError(f"chart type {kind!r} not supported yet (have: {supported})")
-    if kind == "line":
-        renderer(ax, x, y, color, label, ctx, group, linestyle)
-    else:
-        renderer(ax, x, y, color, label, ctx, group)
-
 
 # Layering by type role: filled backgrounds at the back, lines always in front,
 # independent of the order series appear in the spec.
@@ -58,6 +82,102 @@ Z_AREA = 1
 Z_BAR = 2
 Z_LINE = 3
 
+
+# --- strategy classes ----------------------------------------------------------
+
+class ChartType:
+    """How one spec `type` draws and labels itself.
+
+    Stateless singletons — all cross-series state lives in the GroupState that
+    render passes to `draw`, and per-series geometry travels in the returned Geom.
+    """
+
+    #: Line marks are placed across series (side selection needs every line at
+    #: once), so LineType defers them to `marks.draw_line_marks` at group level.
+    defer_marks = False
+
+    def draw(self, ax, series, x, y, periods, color: str, ctx: RenderContext,
+             state: GroupState) -> Geom:
+        raise NotImplementedError
+
+    def place_marks(self, ax, series, periods, x, y, color: str, decimals: int,
+                    ctx: RenderContext, geom: Geom, theme) -> None:
+        for i in marks.mark_indices(series, periods):
+            self._mark_one(ax, series.mark, i, x, y, geom, color, decimals, ctx, theme)
+
+    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme) -> None:
+        raise NotImplementedError
+
+
+class LineType(ChartType):
+    defer_marks = True   # placed cross-series by marks.draw_line_marks
+
+    def draw(self, ax, series, x, y, periods, color, ctx, state) -> Geom:
+        draw_line(ax, x, y, color, series.legend_label, ctx, (0, 1),
+                  LINESTYLES[series.line])
+        return None
+
+
+class BarType(ChartType):
+    def draw(self, ax, series, x, y, periods, color, ctx, state) -> BarGeom:
+        geom = BarGeom(index=state.bar_seen, count=state.bar_count)
+        state.bar_seen += 1
+        draw_bar(ax, x, y, color, series.legend_label, ctx, (geom.index, geom.count))
+        return geom
+
+    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme):
+        # the label sits over the dodged bar, not the period centre
+        offset = (geom.index - (geom.count - 1) / 2) * (ctx.step * ctx.bar_width_frac / geom.count)
+        marks.bar_mark(ax, mark, x[i] + offset, y[i], color, decimals)
+
+
+class AreaType(ChartType):
+    def draw(self, ax, series, x, y, periods, color, ctx, state) -> AreaGeom:
+        base = np.array([state.area_cum.get(p, 0.0) for p in periods])
+        top = base + y
+        draw_area_band(ax, x, base, top, color, series.legend_label)
+        state.area_cum.update(dict(zip(periods, top)))   # next area stacks on top
+        return AreaGeom(top=top)
+
+    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme):
+        marks.area_mark(ax, mark, x[i], geom.top[i], y[i], color, decimals)
+
+
+class StackedType(ChartType):
+    def draw(self, ax, series, x, y, periods, color, ctx, state) -> StackedGeom:
+        vals = np.where(np.isfinite(y), y, 0.0)
+        bottoms = np.array([(state.pos_cum if v >= 0 else state.neg_cum).get(p, 0.0)
+                            for p, v in zip(periods, vals)])
+        draw_stacked_bar(ax, x, vals, bottoms, color, series.legend_label, ctx)
+        for p, v, b in zip(periods, vals, bottoms):   # +ve up, -ve down
+            (state.pos_cum if v >= 0 else state.neg_cum)[p] = b + v
+        return StackedGeom(bottoms=bottoms, vals=vals)
+
+    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme):
+        marks.stacked_mark(ax, mark, x[i], geom.bottoms[i], geom.vals[i],
+                           color, decimals, ctx, theme)
+
+
+CHART_TYPES: dict[str, ChartType] = {
+    "line": LineType(),
+    "bar": BarType(),
+    "area": AreaType(),
+    "stacked": StackedType(),
+}
+
+
+def chart_type(kind: str) -> ChartType:
+    """The ChartType for a spec `type`, with a clear error for unknown kinds."""
+    try:
+        return CHART_TYPES[kind]
+    except KeyError:
+        supported = ", ".join(sorted(CHART_TYPES))
+        raise ChartTypeError(
+            f"chart type {kind!r} not supported yet (have: {supported})"
+        ) from None
+
+
+# --- drawing primitives ----------------------------------------------------------
 
 def draw_line(ax, x, y, color, label, ctx, group, linestyle="-") -> None:
     x, y = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
@@ -123,12 +243,6 @@ def draw_bar(ax, x, y, color, label, ctx, group) -> None:
         label=label,
         zorder=Z_BAR,
     )
-
-
-_RENDERERS: dict[str, Callable] = {
-    "line": draw_line,
-    "bar": draw_bar,
-}
 
 
 def _finite_span(y: np.ndarray) -> tuple[int, int] | None:

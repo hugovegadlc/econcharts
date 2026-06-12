@@ -195,11 +195,13 @@ def _draw_series(ax, ax2, spec: Spec, long_df: pd.DataFrame, theme: Theme) -> No
 
 def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
                 ctx: charttypes.RenderContext) -> None:
-    """Draw a set of (global_index, series) onto one Axes, with its own stacking."""
-    bar_idx = [i for i, s in items if s.type == "bar"]
-    area_cum: dict = {}            # period -> cumulative top, so area series stack
-    pos_cum: dict = {}            # period -> running top for stacked +ve layers
-    neg_cum: dict = {}            # period -> running bottom for stacked -ve layers
+    """Draw a set of (global_index, series) onto one Axes, with its own stacking.
+
+    All type-specific behaviour (stacking, dodging, mark placement) lives on the
+    strategy classes in `charttypes.CHART_TYPES`; this loop just walks the series
+    in spec order with the group's shared accumulator state.
+    """
+    state = charttypes.GroupState(bar_count=sum(1 for _, s in items if s.type == "bar"))
     mark_decimals = _mark_decimals(items, long_df)  # consistent decimals across the axis
     line_marks: list = []   # collected so line label sides can be chosen across series
     for i, s in items:
@@ -211,37 +213,16 @@ def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
             color = theme.resolve_color(s.color) if s.color else theme.color(i)
         except ThemeError as e:
             raise RenderError(f"series {s.name!r}: {e}") from None
-        label = s.legend_label
-        geom: dict = {}  # per-type geometry captured for marks
+        ctype = charttypes.chart_type(s.type)
         try:
-            if s.type == "area":
-                base = np.array([area_cum.get(p, 0.0) for p in periods])
-                top = base + y
-                charttypes.draw_area_band(ax, x, base, top, color, label)
-                area_cum.update(dict(zip(periods, top)))  # next area stacks on top
-                geom["top"] = top
-            elif s.type == "stacked":
-                vals = np.where(np.isfinite(y), y, 0.0)
-                bottoms = np.array([(pos_cum if v >= 0 else neg_cum).get(p, 0.0)
-                                    for p, v in zip(periods, vals)])
-                charttypes.draw_stacked_bar(ax, x, vals, bottoms, color, label, ctx)
-                for p, v, b in zip(periods, vals, bottoms):  # +ve up, -ve down
-                    (pos_cum if v >= 0 else neg_cum)[p] = b + v
-                geom["bottoms"], geom["vals"] = bottoms, vals
-            elif s.type == "bar":
-                group = (bar_idx.index(i), len(bar_idx))
-                charttypes.draw(ax, "bar", x, y, color, label, ctx, group)
-                geom["group"] = group
-            else:
-                ls = charttypes.LINESTYLES[s.line]
-                charttypes.draw(ax, "line", x, y, color, label, ctx, (0, 1), linestyle=ls)
+            geom = ctype.draw(ax, s, x, y, periods, color, ctx, state)
         except charttypes.ChartTypeError as e:
             raise RenderError(f"series {s.name!r}: {e}") from None
         if s.mark is not None:
-            if s.type == "line":
+            if ctype.defer_marks:
                 line_marks.append((s, periods, x, y, color))
             else:
-                _marks.draw_marks(ax, s, periods, x, y, color, mark_decimals, ctx, geom, theme)
+                ctype.place_marks(ax, s, periods, x, y, color, mark_decimals, ctx, geom, theme)
     if line_marks:
         _marks.draw_line_marks(ax, line_marks, mark_decimals)
 

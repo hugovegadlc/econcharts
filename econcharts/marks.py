@@ -1,7 +1,8 @@
 """Per-series data-label marks: value text and (for lines) optional dots.
 
 A mark labels a series' values at chosen points (`at` = all / last / token(s)).
-Placement is per chart type:
+This module holds the placement PRIMITIVES; per-type dispatch lives on the
+strategy classes in `charttypes.CHART_TYPES`. Placement per chart type:
   line    -> optional dot + value above the point, series color
   bar     -> value on top (below if negative), bar color
   area    -> value just above the curve, series color
@@ -32,28 +33,18 @@ _LABEL_FONTSIZE = 8
 MARK_GID = "_econ_mark"
 
 
-def draw_marks(ax, series, periods, x, y, color, decimals, ctx, geom, theme) -> None:
-    """Draw a bar/area/stacked series' marks. (Line marks are placed together by
-    `draw_line_marks` so their above/below sides can be chosen across series.)"""
-    mark = series.mark
-    if mark is None:
-        return
-    indices = _resolve_points(mark.at, periods)
-    if not indices and mark.at not in ("all", "last"):
+def mark_indices(series, periods) -> list[int]:
+    """The indices a series' mark points to, warning when an explicit token matches
+    nothing — a typo or a date outside the window would otherwise vanish silently.
+    (`all`/`last` are exempt: they legitimately resolve empty on an empty series.)"""
+    indices = _resolve_points(series.mark.at, periods)
+    if not indices and series.mark.at not in ("all", "last"):
         warnings.warn(
-            f"series {series.name!r}: mark.at {mark.at!r} matched no periods "
+            f"series {series.name!r}: mark.at {series.mark.at!r} matched no periods "
             f"(outside the window or wrong token?)",
             UserWarning, stacklevel=2,
         )
-    for i in indices:
-        if series.type == "bar":
-            index, count = geom["group"]
-            offset = (index - (count - 1) / 2) * (ctx.step * ctx.bar_width_frac / count)
-            _bar_mark(ax, mark, x[i] + offset, y[i], color, decimals)
-        elif series.type == "area":
-            _area_mark(ax, mark, x[i], geom["top"][i], y[i], color, decimals)
-        elif series.type == "stacked":
-            _stacked_mark(ax, mark, x[i], geom["bottoms"][i], geom["vals"][i], color, decimals, ctx, theme)
+    return indices
 
 
 def draw_line_marks(ax, line_series, decimals) -> None:
@@ -62,14 +53,7 @@ def draw_line_marks(ax, line_series, decimals) -> None:
     maximum goes above and a local minimum below (labels sit on the outer side)."""
     points = []  # (xi, yi, color, mark, x_array, y_array, idx)
     for series, periods, x, y, color in line_series:
-        indices = _resolve_points(series.mark.at, periods)
-        if not indices and series.mark.at not in ("all", "last"):
-            warnings.warn(
-                f"series {series.name!r}: mark.at {series.mark.at!r} matched no periods "
-                f"(outside the window or wrong token?)",
-                UserWarning, stacklevel=2,
-            )
-        for i in indices:
+        for i in mark_indices(series, periods):
             points.append((x[i], y[i], color, series.mark, x, y, i))
     groups: dict = {}
     for p in points:
@@ -159,7 +143,7 @@ def _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_p
             ann._econ_perp = (xi, yi, prev_pt, next_pt, side)
 
 
-def _bar_mark(ax, mark, xi, value, color, decimals) -> None:
+def bar_mark(ax, mark, xi, value, color, decimals) -> None:
     text = _label_text(mark, value, decimals)
     if text is None:
         return
@@ -167,14 +151,14 @@ def _bar_mark(ax, mark, xi, value, color, decimals) -> None:
     _label(ax, text, (xi, value), (0, dy), "center", va, color)
 
 
-def _area_mark(ax, mark, xi, top_i, value, color, decimals) -> None:
+def area_mark(ax, mark, xi, top_i, value, color, decimals) -> None:
     text = _label_text(mark, value, decimals)
     if text is None:
         return
     _label(ax, text, (xi, top_i), (0, 3), "center", "bottom", color)  # just above the curve
 
 
-def _stacked_mark(ax, mark, xi, bottom, value, color, decimals, ctx, theme) -> None:
+def stacked_mark(ax, mark, xi, bottom, value, color, decimals, ctx, theme) -> None:
     text = _label_text(mark, value, decimals)
     if text is None or value == 0:
         return

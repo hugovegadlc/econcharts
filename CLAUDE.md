@@ -29,9 +29,9 @@ Backlog (build in this order when asked): domain registry (`recessions:`/`target
 econcharts/
   spec.py          # pydantic v2 models, YAML load + validation (the spec boundary)
   data.py          # DataResolver; ref grammar; period parsing; long-df contract
-  charttypes.py    # per-series renderers: line / bar / area / stacked (PCHIP smoothing)
+  charttypes.py    # CHART_TYPES strategy classes (draw + mark dispatch per type) + primitives (PCHIP smoothing)
   annotations.py   # hline / vline / span / band overlays
-  marks.py         # per-series value labels + deterministic placement rules
+  marks.py         # value-label placement primitives + cross-series line-mark rules
   timeaxis.py      # adaptive date-axis granularity + tick planning (pure)
   theme.py         # theme engine: loads themes/*.yaml; es-PE formatters; named sizes
   render.py        # orchestration: spec -> Figure -> backend; framing; mark finalize
@@ -80,7 +80,8 @@ Ref grammar dispatched by prefix: `excel:<file>#<sheet>!<column>` (implemented);
 
 ## Marks & label placement
 matplotlib's weak spot is label collision; econcharts handles it **deterministically** (no adjustText — it was dropped):
-- Per-type placement in `marks.py`: line → dot + label on the outer side of the curve; bar → above (below if negative); area → above the curve; stacked → centered in the segment with auto white/navy contrast.
+- **`charttypes.CHART_TYPES` is the single per-type dispatch point**: each strategy class owns its drawing (stacking/dodging via the shared `GroupState`), its typed geometry (`BarGeom`/`AreaGeom`/`StackedGeom`), and its mark placement — adding a chart type (e.g. `fan`) is one new class, not parallel switches across modules.
+- Placement primitives in `marks.py`: line → dot + label on the outer side of the curve; bar → above (below if negative); area → above the curve; stacked → centered in the segment with auto white/navy contrast.
 - Cross-series rules in `draw_line_marks`: at a shared x the lowest goes below, rest above; 3+ series at the last point go right of the endpoint.
 - `render._finalize_marks` post-processes after layout: hides stacked labels that don't fit their segment, offsets line labels perpendicular to the local slope (constant visual gap), spreads cramped right-labels with leader lines, then grows axis limits (capped) so nothing clips.
 - Marks carry `gid = marks.MARK_GID` and `set_in_layout(False)` so constrained layout ignores them.
