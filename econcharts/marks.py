@@ -20,7 +20,7 @@ from __future__ import annotations
 import math
 
 from econcharts.data import parse_period
-from econcharts.theme import es_pe, label_contrast_color, value_decimals
+from econcharts.theme import es_pe, value_decimals
 
 _Z_MARKER = 4.0
 _Z_LABEL = 5.0
@@ -31,7 +31,7 @@ _LABEL_FONTSIZE = 8
 MARK_GID = "_econ_mark"
 
 
-def draw_marks(ax, series, periods, x, y, color, decimals, ctx, geom) -> None:
+def draw_marks(ax, series, periods, x, y, color, decimals, ctx, geom, theme) -> None:
     """Draw a bar/area/stacked series' marks. (Line marks are placed together by
     `draw_line_marks` so their above/below sides can be chosen across series.)"""
     mark = series.mark
@@ -45,7 +45,7 @@ def draw_marks(ax, series, periods, x, y, color, decimals, ctx, geom) -> None:
         elif series.type == "area":
             _area_mark(ax, mark, x[i], geom["top"][i], y[i], color, decimals)
         elif series.type == "stacked":
-            _stacked_mark(ax, mark, x[i], geom["bottoms"][i], geom["vals"][i], color, decimals, ctx)
+            _stacked_mark(ax, mark, x[i], geom["bottoms"][i], geom["vals"][i], color, decimals, ctx, theme)
 
 
 def draw_line_marks(ax, line_series, decimals) -> None:
@@ -159,13 +159,13 @@ def _area_mark(ax, mark, xi, top_i, value, color, decimals) -> None:
     _label(ax, text, (xi, top_i), (0, 3), "center", "bottom", color)  # just above the curve
 
 
-def _stacked_mark(ax, mark, xi, bottom, value, color, decimals, ctx) -> None:
+def _stacked_mark(ax, mark, xi, bottom, value, color, decimals, ctx, theme) -> None:
     text = _label_text(mark, value, decimals)
     if text is None or value == 0:
         return
     y0, y1 = sorted((bottom, bottom + value))
     ann = ax.annotate(text, (xi, (y0 + y1) / 2), ha="center", va="center",
-                      fontsize=_LABEL_FONTSIZE, color=label_contrast_color(color),
+                      fontsize=_LABEL_FONTSIZE, color=theme.label_contrast_color(color),
                       zorder=_Z_LABEL)
     ann.set_gid(MARK_GID)
     ann.set_in_layout(False)

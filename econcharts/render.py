@@ -231,7 +231,7 @@ def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
             if s.type == "line":
                 line_marks.append((s, periods, x, y, color))
             else:
-                _marks.draw_marks(ax, s, periods, x, y, color, mark_decimals, ctx, geom)
+                _marks.draw_marks(ax, s, periods, x, y, color, mark_decimals, ctx, geom, theme)
     if line_marks:
         _marks.draw_line_marks(ax, line_marks, mark_decimals)
 

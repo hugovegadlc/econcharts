@@ -37,11 +37,6 @@ SIZES_MM: dict[str, tuple[float, float]] = {
 DEFAULT_SIZE = "slides_half"
 
 
-def label_contrast_color(fill: str) -> str:
-    """White on dark fills, dark navy on light fills — for labels inside a fill."""
-    r, g, b = mcolors.to_rgb(fill)
-    luminance = 0.299 * r + 0.587 * g + 0.114 * b
-    return "#FFFFFF" if luminance < 0.55 else "#072146"
 
 # es-PE month/quarter abbreviations (lowercase, no diacritics on the stem).
 _MONTHS_ES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "set", "oct", "nov", "dic"]
@@ -101,6 +96,12 @@ class Theme:
     def annotation_label_color(self, color: str) -> str:
         """The annotation's label-text color (a legible shade of its own color)."""
         return self.ann_label[color]
+
+    def label_contrast_color(self, fill: str) -> str:
+        """White on dark fills, ink on light fills — for labels drawn inside a fill."""
+        r, g, b = mcolors.to_rgb(fill)
+        luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        return self.colors["white"] if luminance < 0.55 else self.colors["ink"]
 
     def date_label(self, period: "pd.Period", granularity: str, style: Optional[str] = None) -> str:
         """Format `period` at a DISPLAY `granularity` (D/M/Q/Y, may be coarser than
