@@ -287,19 +287,46 @@ def _coerce_periods(col: pd.Series, name: str) -> list:
                 out.append(parse_period(v.strip()) if pd.notna(v) else pd.NaT)
             except DataError:
                 out.append(pd.NaT)
-        return out
+        return _check_duplicate_periods(out, name)
 
     # 2) bare year integers (e.g. 2018, 2019, ...)
     if all(isinstance(v, (int,)) or (isinstance(v, float) and float(v).is_integer())
            for v in non_null) and all(1500 <= int(v) <= 2500 for v in non_null):
-        return [pd.Period(year=int(v), freq="Y") if pd.notna(v) else pd.NaT for v in values]
+        out = [pd.Period(year=int(v), freq="Y") if pd.notna(v) else pd.NaT for v in values]
+        return _check_duplicate_periods(out, name)
 
     # 3) datetimes — infer freq from median day spacing
     dt = pd.to_datetime(col, errors="coerce")
     if dt.notna().sum() == 0:
         raise DataError(f"series {name!r}: could not interpret period column ({col.name!r})")
     freq = _infer_period_freq(dt.dropna())
-    return [t.to_period(freq) if pd.notna(t) else pd.NaT for t in dt]
+    out = [t.to_period(freq) if pd.notna(t) else pd.NaT for t in dt]
+    return _check_duplicate_periods(out, name)
+
+
+def _check_duplicate_periods(periods: list, name: str) -> list:
+    """Raise DataError if the same period appears more than once (after NaT is excluded).
+
+    Weekly data coerced to monthly freq is the common trigger — two dates in
+    the same month both map to the same Period, producing duplicate rows that
+    corrupt every downstream operation silently.
+    """
+    seen, dupes = set(), set()
+    for p in periods:
+        if pd.isna(p):
+            continue
+        key = str(p)
+        if key in seen:
+            dupes.add(key)
+        seen.add(key)
+    if dupes:
+        examples = ", ".join(sorted(dupes)[:3])
+        raise DataError(
+            f"series {name!r}: duplicate periods after coercion ({examples}…); "
+            f"data may be sub-monthly (weekly?) which is not supported — "
+            f"aggregate to monthly/quarterly before loading"
+        )
+    return periods
 
 
 def _infer_period_freq(dt: pd.Series) -> str:
