@@ -142,6 +142,13 @@ def clip_to_window(df: pd.DataFrame, window: Optional[pd.PeriodIndex]) -> pd.Dat
     """Drop rows whose period falls outside `window` (inclusive). No-op if no window."""
     if window is None or df.empty:
         return df
+    data_freq = df["period"].iloc[0].freqstr[0]
+    win_freq = window[0].freqstr[0]
+    if data_freq != win_freq:
+        raise DataError(
+            f"period window freq ({win_freq}) doesn't match data freq ({data_freq}); "
+            f"the `period` key must use the same granularity as the data"
+        )
     lo, hi = window[0], window[-1]
     keep = [lo <= p <= hi for p in df["period"]]
     return df[keep].reset_index(drop=True)
@@ -203,12 +210,7 @@ class DataResolver:
         return pd.DataFrame({"period": periods, "series": name, "value": values})[LONG_COLUMNS]
 
     def _clip_window(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Restrict resolved rows to the chart `period` window, if one is set."""
-        if self.window is None or df.empty:
-            return df
-        lo, hi = self.window[0], self.window[-1]
-        keep = [lo <= p <= hi for p in df["period"]]
-        return df[keep].reset_index(drop=True)
+        return clip_to_window(df, self.window)
 
     # -- refs --
     def _resolve_ref(self, name: str, ref: str) -> pd.DataFrame:
