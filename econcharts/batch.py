@@ -20,6 +20,7 @@ from typing import Any, Optional, Union
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, model_validator
 
+from econcharts.errors import EconchartsError
 from econcharts.spec import SpecError, _format_validation_error
 from econcharts.theme import DEFAULT_SIZE
 
@@ -30,7 +31,7 @@ _DEFAULT_BACKEND = "png"
 _DEFAULT_OUTPUT_DIR = "figuras"
 
 
-class BatchError(ValueError):
+class BatchError(EconchartsError):
     """A batch document was malformed (header-level)."""
 
 

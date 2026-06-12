@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Literal, Optional, Union
 
 import yaml
+from econcharts.errors import EconchartsError
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -222,7 +223,7 @@ class Spec(BaseModel):
             raise SpecError(_format_validation_error(e, source_name)) from None
 
 
-class SpecError(ValueError):
+class SpecError(EconchartsError):
     """A spec failed validation. Message names the offending key(s)."""
 
 

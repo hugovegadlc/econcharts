@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 import matplotlib.colors as mcolors
+from econcharts.errors import EconchartsError
 import matplotlib.pyplot as plt
 import pandas as pd
 import yaml
@@ -173,7 +174,7 @@ def load_theme(name: str) -> Theme:
     )
 
 
-class ThemeError(ValueError):
+class ThemeError(EconchartsError):
     """Theme could not be resolved."""
 
 

@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import pandas as pd
 
+from econcharts.errors import EconchartsError
+
 if TYPE_CHECKING:
     from econcharts.spec import Series, Spec
 
@@ -41,7 +43,7 @@ _EXCEL_REF = re.compile(r"^excel:(?P<file>[^#]+)#(?P<sheet>[^!]+)!(?P<column>.+)
 DATA_ROOT_ENV = "ECONCHARTS_DATA_ROOT"
 
 
-class DataError(ValueError):
+class DataError(EconchartsError):
     """A data ref or inline payload could not be resolved."""
 
 

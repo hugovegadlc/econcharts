@@ -45,11 +45,12 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 
 def _build(args) -> int:
-    from econcharts.batch import Batch, BatchError, run_jobs
+    from econcharts.batch import Batch, run_jobs
+    from econcharts.errors import EconchartsError
 
     try:
         batch = Batch.from_yaml(args.batch)
-    except (BatchError, OSError) as e:
+    except (EconchartsError, OSError) as e:
         print(f"econcharts: {e}", file=sys.stderr)
         return 2
 
@@ -95,8 +96,9 @@ def _build(args) -> int:
 def _render(args) -> int:
     import matplotlib.pyplot as plt
 
-    from econcharts.render import RenderError, render, save
-    from econcharts.spec import Spec, SpecError
+    from econcharts.errors import EconchartsError
+    from econcharts.render import render, save
+    from econcharts.spec import Spec
 
     spec_path = Path(args.spec)
     try:
@@ -107,7 +109,7 @@ def _render(args) -> int:
         fig = render(spec, **kwargs)
         save(fig, args.output, backend=args.backend)
         plt.close(fig)
-    except (SpecError, RenderError, OSError) as e:
+    except (EconchartsError, OSError) as e:
         print(f"econcharts: {e}", file=sys.stderr)
         return 1
     print(f"wrote {args.output}")

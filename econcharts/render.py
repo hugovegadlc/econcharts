@@ -18,6 +18,7 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.transforms import Bbox
 
+from econcharts.errors import EconchartsError
 from econcharts import annotations as _annotations
 from econcharts import charttypes
 from econcharts import marks as _marks
@@ -48,7 +49,7 @@ _BACKENDS = {
 }
 
 
-class RenderError(ValueError):
+class RenderError(EconchartsError):
     """A spec was valid but could not be rendered."""
 
 
