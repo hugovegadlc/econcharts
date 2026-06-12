@@ -1,0 +1,32 @@
+# A batch document: many charts -> many figures in one run.
+# Paths resolve relative to THIS file; figures land in ./figuras as <id>_<date>.png.
+# `econcharts build examples/batch.yaml`
+output_dir: figuras
+theme: bbva
+size: slides_half          # inherited by every chart unless it overrides
+charts:
+  - id: inflacion
+    title: Inflación — Perú
+    subtitle: var. % anual del IPC
+    source: BCRP
+    period: 2021Q1:2024Q4
+    series:
+      - {name: Inflación total,      data: "excel:datos.xlsx#inflacion!total",       type: line}
+      - {name: Inflación subyacente, data: "excel:datos.xlsx#inflacion!subyacente",  type: line}
+
+  - id: tipo_cambio
+    title: Tipo de cambio
+    subtitle: PEN/USD, diario
+    source: BCRP
+    period: 2024-01-02:2024-04-26
+    size: slides_full        # per-chart override of the header default
+    series:
+      - {name: PEN/USD, data: "excel:datos.xlsx#diario!pen_usd", type: line}
+
+  - id: reservas
+    title: Reservas internacionales netas
+    subtitle: miles de millones de US$
+    source: BCRP
+    period: 2021Q1:2024Q4
+    series:
+      - {name: RIN, data: "excel:datos.xlsx#reservas!rin", type: area}

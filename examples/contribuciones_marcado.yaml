@@ -1,0 +1,18 @@
+title: PBI — contribuciones al crecimiento
+subtitle: puntos porcentuales, var. % anual
+source: BCRP
+theme: bbva
+period: 2023Q1:2024Q4
+series:
+  - name: Consumo
+    type: stacked
+    data: "excel:datos.xlsx#contribuciones!consumo"
+    mark: all
+  - name: Inversión
+    type: stacked
+    data: "excel:datos.xlsx#contribuciones!inversion"
+    mark: all
+  - name: Sector externo
+    type: stacked
+    data: "excel:datos.xlsx#contribuciones!sector_externo"
+    mark: all

@@ -1,0 +1,13 @@
+# Authoritative frame: the axis spans the declared `period` window even where the
+# series has no data. Here data covers only 2022Q1-2023Q2 but the chart frames the
+# full 2021Q1:2024Q4 window. The `last` mark sits at the SERIES' last point (2023Q2),
+# not the frame end. (Use `period: 2021Q1:end` to let the data set the right edge.)
+title: Marco amplio
+subtitle: datos 2022-2023, ventana 2021Q1:2024Q4
+theme: bbva
+period: 2021Q1:2024Q4
+series:
+  - name: Serie
+    type: line
+    data: {2022Q1: 2.0, 2022Q2: 2.6, 2022Q3: 3.1, 2022Q4: 3.4, 2023Q1: 3.2, 2023Q2: 2.9}
+    mark: {at: last}

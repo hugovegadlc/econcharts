@@ -1,0 +1,13 @@
+# Stress case: a value label on EVERY point of a dense line (`mark: all`).
+# Side selection puts local maxima above and minima below so labels hug the
+# outer side of the curve. Review this after any mark/label change.
+title: Inflación — Perú
+subtitle: var. % anual del IPC
+source: BCRP
+theme: bbva
+period: 2021Q1:2024Q4
+series:
+  - name: Inflación total
+    type: line
+    data: "excel:datos.xlsx#inflacion!total"
+    mark: all

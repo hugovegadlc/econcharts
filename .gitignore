@@ -1,0 +1,32 @@
+# Proprietary source material — do NOT publish
+bbva source/
+*.xlam
+
+# Build / ship artifacts (regenerable)
+ship/venv/
+ship/build/
+ship/dist/
+ship/buildlog.txt
+ship/*.spec
+mock_ship/build/
+mock_ship/dist/
+mock_ship/venv/
+
+# Rendered outputs (regenerable; goldens in tests/baseline/ are NOT ignored)
+examples/_gallery/
+examples/*.png
+figuras/
+*.pptx
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.eggs/
+build/
+dist/
+
+# Editor / OS
+.DS_Store
+Thumbs.db

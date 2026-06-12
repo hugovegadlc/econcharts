@@ -1,0 +1,141 @@
+# econcharts — spec grammar (canonical reference)
+
+The frozen vocabulary for hand-authoring charts. This is the contract the manual and
+any AI authoring layer build on. Validation happens at the spec boundary (`spec.py`),
+with errors naming the offending key.
+
+## Principles
+1. **Substance, not form.** A spec carries content + domain semantics only. Every
+   formal choice (color, font, spacing, label format) lives in the theme.
+2. **Overrides are *selections* from a theme-named set** — never raw values. `color`,
+   `line`, `date_label`, and annotation `color/weight/line` all pick a name the theme
+   defined. The chart-level `style:` block is the *sole* raw-value escape hatch.
+3. **`type` is explicit per series** (no chart default) and is also the combination
+   rule (see Series).
+4. **Selections cascade** most-general → most-specific:
+   **theme default → batch-header default → chart/series override.**
+5. **Natural shorthand** where it reads cleanly (`mark: last`, `hline: 0`, `period: 2024`).
+
+---
+
+## Chart spec (top level)
+| key | type | notes |
+|-----|------|-------|
+| `title` | string? | chart title |
+| `subtitle` | string? | below the title |
+| `source` | string? | metadata only — **not drawn** (lives beside the chart on the slide) |
+| `period` | string? | the axis frame / window — see **Period** |
+| `theme` | string | default `bbva` |
+| `ylabel` | string? | primary y-axis label |
+| `y2label` | string? | secondary y-axis label |
+| `date_label` | string? | selects a theme date-label style by name — see **Date labels** |
+| `series` | list | **required**, ≥1 — see **Series** |
+| `annotations` | list | optional — see **Annotations** |
+| `style` | map | escape hatch: raw rcParam / axis overrides. Rarely touched. |
+
+`id` is added at the batch level (output identity); a standalone chart doesn't need it.
+
+## Series (list item)
+| key | type | notes |
+|-----|------|-------|
+| `name` | string | **required** — identity + default legend text |
+| `data` | string \| list \| map | **required** — see **Data** |
+| `type` | `line`\|`bar`\|`area`\|`stacked` | **required**, no default |
+| `axis` | `primary`\|`secondary` | default `primary` |
+| `label` | string? | overrides the legend display name (default = `name`) |
+| `mark` | map \| shorthand | data-label marks — see **Mark** |
+| `color` | string? | selects a **theme palette color by name** (not hex) |
+| `line` | `solid`\|`dashed`\|`dotted` | stroke; **line series only**; default `solid` |
+
+**Combination by `type`** (the type *is* the combine rule): multiple `bar` group
+side-by-side (dodged); multiple `stacked` stack (negatives downward); `area` fill and
+stack; `line` are smoothed curves drawn on top. Mixing is allowed (e.g. stacked bars +
+a total line).
+
+## Mark (per-series data labels)
+| key | type | notes |
+|-----|------|-------|
+| `at` | `all`\|`last`\|token\|[tokens] | which points to mark |
+| `marker` | bool | filled dot; **line series only**; default `false` |
+| `value` | bool | show the numeric value as a label; default `true` |
+| `text` | string? | custom text replacing the value; **single point only** |
+
+Shorthand: `mark: last` or `mark: [2020Q2, 2021Q1]` → `{at: …}`. A line mark needs at
+least one of `marker` / `value` / `text`. `mark: last` on a partial series marks **that
+series'** last real point (≠ the sample end).
+
+## Annotations (list; each a tagged map)
+| form | shape | style keys |
+|------|-------|-----------|
+| `hline` | `hline: 0` or `[0, 2]` | `color`, `weight`, `line` |
+| `vline` | `vline: 2020Q2` or `[…]` | `color`, `weight`, `line` |
+| `span` | `span: {from, to, label?}` | `color` |
+| `band` | `band: {y0, y1, label?}` | `color` |
+
+`vline`/`span` take period tokens. `vline` sits on the period boundary for bar charts,
+at the data point for line/area. Annotation `color` is a **separate 3-name role
+vocabulary** (`grey`/`orange`/`blue`) that tints per role — distinct from the series
+palette names (which mostly coincide, but `grey` differs).
+
+## Data (the `data` value)
+- `excel:<file>#<sheet>!<column>` — `<file>` resolves against `data_root`; the period
+  column defaults to the sheet's first column. Daily date cells arrive as datetimes.
+- inline **list** `[v, v, null, …]` — aligns positionally to the `period` window.
+- inline **map** `{2024Q1: 1.2, 2024Q2: null}` — carries its own periods.
+- `gsheet:…`, `db:…` — recognized, not yet implemented.
+- Missing values (`null`) may sit only at the **ends**; a line starts/ends at its first/
+  last real point (no bridging).
+
+## Period (axis frame)
+A single token or `start:end` (inclusive). The window is the **authoritative axis
+frame**: the chart spans exactly it, even where a series has no data; data outside is
+clipped; with no `period`, the axis falls back to the data's own range.
+
+| freq | token | example |
+|------|-------|---------|
+| year | `YYYY` | `2024` |
+| quarter | `YYYYQn` | `2024Q1` |
+| month | `YYYYMmm` | `2024M03` |
+| day | `YYYY-MM-DD` (ISO) | `2024-03-15` |
+
+Either bound may be a **data-driven token**: `start` = the sample's first period, `end`
+= its last (min/max across all dated series, ≠ any one series' first/last). E.g.
+`2018Q1:end`, `start:2025Q4`, `start:end`. One frequency per chart.
+
+---
+
+## Theme-named selection vocabularies
+What names a spec may select (the theme owns the values + the default):
+- **series `color`** — palette: `blue lightblue green orange yellow cyan purple grey
+  red teal gold darkgreen` + `structural ink slate amber`.
+- **`line`** (series): `solid` `dashed` `dotted` (annotation `line`: `solid` `dotted`).
+- **annotation `color`**: `grey` `orange` `blue`; **`weight`**: `thin` `thick`.
+- **`date_label`** styles, per display granularity (applied where defined, else default):
+  D `plain`(15-jul)/`dotted`(15-jul.) · M `plain`(mar-24)/`dotted`(mar.-24) ·
+  Q `month`(mar-24, **default**)/`quarter`(1T24) · Y `full`(2024). The axis chooses the
+  granularity adaptively (finest that fits the width; daily→month→quarter→year).
+
+## Render-time choices (NOT spec fields)
+One spec → many targets, chosen at render:
+- **size** (physical mm): `word_half` `word_full` `slides_half` (default) `slides_full`.
+- **backend**: `png` (Slides) · `svg`/`pdf` (LaTeX) *(svg/pdf pending)*.
+
+## Batch document (orchestration; layer above a chart — see roadmap C)
+One document renders many charts to separate figures:
+```yaml
+data_root: ./data            # orchestration: where workbooks live
+output_dir: ./figuras        # orchestration: where PNGs land
+theme: bbva                  # inheritable default
+size: slides_half            # inheritable default
+backend: png                 # inheritable default
+render: [pbi, inflacion]     # optional id subset; omit = all
+charts:
+  - {id: pbi, title: …, period: 2018Q1:end, series: […]}
+  - {id: inflacion, …}
+```
+- **Orchestration (header-only):** `data_root`, `output_dir`, `render`.
+- **Inheritable (header default → chart override):** `theme`, `size`, `backend`, `date_label`.
+- **Pure chart substance:** `id`, `title`, `subtitle`, `source`, `period`, `ylabel`,
+  `y2label`, `series`, `annotations`, `style`.
+- A chart spec must render **standalone** — it may inherit the four defaults but never
+  *require* a header key. Output names: `<id>_<renderdate>.png`.

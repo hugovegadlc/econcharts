@@ -1,0 +1,15 @@
+title: Reservas y tipo de cambio — Perú
+subtitle: niveles de cierre trimestral
+source: BCRP
+theme: bbva
+period: 2023Q1:2024Q4
+ylabel: US$ miles de millones
+y2label: S/ por US$
+series:
+  - name: Reservas (RIN)
+    type: line
+    data: "excel:datos.xlsx#reservas!rin"
+  - name: Tipo de cambio
+    type: line
+    axis: secondary
+    data: "excel:datos.xlsx#reservas!tipo_cambio"

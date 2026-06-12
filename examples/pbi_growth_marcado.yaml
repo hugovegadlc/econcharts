@@ -1,0 +1,10 @@
+title: PBI real — Perú
+subtitle: var. % anual
+source: BCRP
+theme: bbva
+period: 2022Q1:2024Q4
+series:
+- name: PBI
+  type: bar
+  data: excel:datos.xlsx#pbi_growth!pbi
+  mark: all

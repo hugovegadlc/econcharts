@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "econcharts"
+version = "0.1.0"
+description = "Publication-quality economic charts from minimal YAML specs (BBVA house style)."
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib",
+    "pandas",
+    "numpy",
+    "scipy",
+    "pydantic>=2",
+    "pyyaml",
+    "openpyxl",
+    "adjustText",
+    "python-pptx",
+]
+
+[project.scripts]
+econcharts = "econcharts.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["econcharts*"]
+
+# NOTE: themes/ and registry/ are data OUTSIDE the package (resolved via a path
+# relative to econcharts/). An editable install (`pip install -e .`) and the frozen
+# exe (PyInstaller --add-data, workstream D) both see them; a plain wheel would not.
+# Wheel distribution isn't a target — the ship is a frozen exe.

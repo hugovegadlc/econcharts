@@ -1,0 +1,9 @@
+title: Reservas internacionales netas — Perú
+subtitle: US$ miles de millones
+source: BCRP
+theme: bbva
+period: 2023Q1:2024Q4
+series:
+  - name: RIN
+    type: area
+    data: "excel:datos.xlsx#reservas!rin"

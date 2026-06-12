@@ -1,0 +1,11 @@
+# Daily (business-day) series. Excel hands the date column to pandas as datetimes;
+# the resolver infers freq=D. Over ~4 months the temporal axis labels by MONTH
+# (ene-24 … abr-24) while the line keeps its daily detail. ISO date tokens in the
+# `period` window.
+title: Tipo de cambio
+subtitle: PEN/USD, diario
+source: BCRP
+theme: bbva
+period: 2024-01-02:2024-04-26
+series:
+  - {name: PEN/USD, data: "excel:datos.xlsx#diario!pen_usd", type: line}

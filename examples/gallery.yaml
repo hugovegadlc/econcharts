@@ -1,0 +1,227 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Batch document — many charts, one run. Use this as a template: copy a chart
+# block, give it a unique `id`, and edit.
+#
+#   econcharts build examples/gallery.yaml     →  one figure per chart in _gallery/
+#
+# The header keys below are DEFAULTS every chart inherits (theme, size); a chart
+# may override any of them. Paths (data + output_dir) resolve relative to THIS
+# file. Each chart needs a unique `id` — it names the output: <id>_<date>.png.
+#
+# A `series` entry fits on one line. Its `data` is one of:
+#   • "excel:file.xlsx#sheet!column"   — a workbook reference
+#   • [1, 2, 3, …]                     — inline values (aligned to `period`)
+#   • {2024Q1: 1.2, 2024Q2: 1.5}       — inline {period: value} pairs
+# ─────────────────────────────────────────────────────────────────────────────
+
+output_dir: _gallery
+theme: bbva
+size: slides_half
+
+charts:
+
+  # Stacked bars: components stack into the net (negatives stack downward).
+  - id: contribuciones
+    title: PBI — contribuciones al crecimiento
+    subtitle: puntos porcentuales, var. % anual
+    source: BCRP
+    period: 2023Q1:2024Q4
+    series:
+      - {name: Consumo,        type: stacked, data: "excel:datos.xlsx#contribuciones!consumo"}
+      - {name: Inversión,      type: stacked, data: "excel:datos.xlsx#contribuciones!inversion"}
+      - {name: Sector externo, type: stacked, data: "excel:datos.xlsx#contribuciones!sector_externo"}
+
+  # `mark: all` labels every point.
+  - id: contribuciones_marcado
+    title: PBI — contribuciones al crecimiento
+    subtitle: puntos porcentuales, var. % anual
+    source: BCRP
+    period: 2023Q1:2024Q4
+    series:
+      - {name: Consumo,        type: stacked, data: "excel:datos.xlsx#contribuciones!consumo",        mark: all}
+      - {name: Inversión,      type: stacked, data: "excel:datos.xlsx#contribuciones!inversion",      mark: all}
+      - {name: Sector externo, type: stacked, data: "excel:datos.xlsx#contribuciones!sector_externo", mark: all}
+
+  - id: credito_moneda
+    title: Crédito al sector privado — Perú
+    subtitle: por moneda, % del PBI
+    source: BCRP
+    period: 2023Q1:2024Q4
+    series:
+      - {name: Soles,   type: area, data: "excel:datos.xlsx#credito!soles"}
+      - {name: Dólares, type: area, data: "excel:datos.xlsx#credito!dolares"}
+
+  - id: exportaciones_importaciones
+    title: Comercio exterior — Perú
+    subtitle: var. % anual
+    source: BCRP
+    period: 2023Q1:2024Q4
+    series:
+      - {name: Exportaciones, type: bar, data: "excel:datos.xlsx#comercio!exportaciones"}
+      - {name: Importaciones, type: bar, data: "excel:datos.xlsx#comercio!importaciones"}
+
+  # Inline data + form overrides: a dashed, recoloured forecast. Leading/trailing
+  # `null`s leave a gap, so the projection starts where the observed series ends.
+  - id: formato_lineas
+    title: Observado y proyección
+    subtitle: observado vs. proyección (línea discontinua)
+    period: 2021Q1:2024Q4
+    series:
+      - {name: Observado,  type: line,                            data: [2.1, 2.4, 3.0, 3.8, 4.5, 5.1, 5.4, 5.0, 4.3, 3.6, 3.1, null, null, null, null, null]}
+      - {name: Proyección, type: line, line: dashed, color: orange, data: [null, null, null, null, null, null, null, null, null, null, 3.1, 3.0, 3.1, 3.3, 3.4, 3.4]}
+
+  - id: inflacion_densa
+    title: Inflación — Perú
+    subtitle: var. % anual del IPC
+    source: BCRP
+    period: 2021Q1:2024Q4
+    series:
+      - {name: Inflación total, type: line, data: "excel:datos.xlsx#inflacion!total", mark: all}
+
+  # `mark: {at: last, marker: true}` — a dot + value at the last point.
+  - id: inflacion_marcada
+    title: Inflación — Perú
+    subtitle: var. % anual del IPC
+    source: BCRP
+    period: 2021Q1:2024Q4
+    series:
+      - {name: Inflación total,      type: line, data: "excel:datos.xlsx#inflacion!total",      mark: {at: last, marker: true}}
+      - {name: Inflación subyacente, type: line, data: "excel:datos.xlsx#inflacion!subyacente", mark: {at: last, marker: true}}
+
+  # `band` annotation = a shaded horizontal range (here the inflation target).
+  - id: inflacion_meta
+    title: Inflación — Perú
+    subtitle: var. % anual del IPC
+    source: BCRP
+    period: 2021Q1:2024Q4
+    series:
+      - {name: Inflación total,      type: line, data: "excel:datos.xlsx#inflacion!total"}
+      - {name: Inflación subyacente, type: line, data: "excel:datos.xlsx#inflacion!subyacente"}
+    annotations:
+      - {band: {y0: 1, y1: 3, label: Meta BCRP}}
+
+  - id: inflacion_pe
+    title: Inflación — Perú
+    subtitle: var. % anual del IPC
+    source: BCRP
+    period: 2021Q1:2024Q4
+    series:
+      - {name: Inflación total,      type: line, data: "excel:datos.xlsx#inflacion!total"}
+      - {name: Inflación subyacente, type: line, data: "excel:datos.xlsx#inflacion!subyacente"}
+
+  # `period` is the axis frame: it spans 2021Q1:2024Q4 though data is 2022-2023.
+  - id: marco_amplio
+    title: Marco amplio
+    subtitle: datos 2022-2023, ventana 2021Q1:2024Q4
+    period: 2021Q1:2024Q4
+    series:
+      - {name: Serie, type: line, mark: {at: last}, data: {2022Q1: 2.0, 2022Q2: 2.6, 2022Q3: 3.1, 2022Q4: 3.4, 2023Q1: 3.2, 2023Q2: 2.9}}
+
+  # The canonical combo: stacked components + a total line over them.
+  - id: pbi_contribuciones
+    title: PBI — contribuciones al crecimiento
+    subtitle: puntos porcentuales; PBI en var. % anual
+    source: BCRP
+    period: 2023Q1:2024Q4
+    series:
+      - {name: Consumo,        type: stacked, data: "excel:datos.xlsx#contribuciones!consumo"}
+      - {name: Inversión,      type: stacked, data: "excel:datos.xlsx#contribuciones!inversion"}
+      - {name: Sector externo, type: stacked, data: "excel:datos.xlsx#contribuciones!sector_externo"}
+      - {name: PBI,            type: line,    data: "excel:datos.xlsx#contribuciones!pbi"}
+
+  # No `title` — the axes fill the freed space.
+  - id: pbi_contribuciones_sin_titulo
+    source: BCRP
+    period: 2023Q1:2024Q4
+    series:
+      - {name: Consumo,        type: stacked, data: "excel:datos.xlsx#contribuciones!consumo"}
+      - {name: Inversión,      type: stacked, data: "excel:datos.xlsx#contribuciones!inversion"}
+      - {name: Sector externo, type: stacked, data: "excel:datos.xlsx#contribuciones!sector_externo"}
+      - {name: PBI,            type: line,    data: "excel:datos.xlsx#contribuciones!pbi"}
+
+  - id: pbi_growth
+    title: PBI real — Perú
+    subtitle: var. % anual
+    source: BCRP
+    period: 2022Q1:2024Q4
+    series:
+      - {name: PBI, type: bar, data: "excel:datos.xlsx#pbi_growth!pbi"}
+
+  # Reference lines: a baseline `hline` and a styled `vline`.
+  - id: pbi_growth_anotado
+    title: PBI real — Perú
+    subtitle: var. % anual
+    source: BCRP
+    period: 2022Q1:2024Q4
+    series:
+      - {name: PBI, type: bar, data: "excel:datos.xlsx#pbi_growth!pbi"}
+    annotations:
+      - {hline: 0}
+      - {vline: 2023Q1, color: orange, weight: thick, line: dotted}
+
+  - id: pbi_growth_marcado
+    title: PBI real — Perú
+    subtitle: var. % anual
+    source: BCRP
+    period: 2022Q1:2024Q4
+    series:
+      - {name: PBI, type: bar, data: "excel:datos.xlsx#pbi_growth!pbi", mark: all}
+
+  # `span` = a shaded period (with a caption).
+  - id: pbi_growth_span
+    title: PBI real — Perú
+    subtitle: var. % anual
+    source: BCRP
+    period: 2022Q1:2024Q4
+    series:
+      - {name: PBI, type: bar, data: "excel:datos.xlsx#pbi_growth!pbi"}
+    annotations:
+      - {hline: 0}
+      - {span: {from: 2022Q4, to: 2023Q3, label: Contracción}, color: orange}
+
+  - id: reservas
+    title: Reservas internacionales netas — Perú
+    subtitle: US$ miles de millones
+    source: BCRP
+    period: 2023Q1:2024Q4
+    series:
+      - {name: RIN, type: area, data: "excel:datos.xlsx#reservas!rin"}
+
+  - id: reservas_marcada
+    title: Reservas internacionales netas — Perú
+    subtitle: US$ miles de millones
+    source: BCRP
+    period: 2023Q1:2024Q4
+    series:
+      - {name: RIN, type: area, data: "excel:datos.xlsx#reservas!rin", mark: all}
+
+  # Secondary axis: `axis: secondary` puts a series on the right-hand scale.
+  - id: reservas_tc
+    title: Reservas y tipo de cambio — Perú
+    subtitle: niveles de cierre trimestral
+    source: BCRP
+    period: 2023Q1:2024Q4
+    ylabel: US$ miles de millones
+    y2label: S/ por US$
+    series:
+      - {name: Reservas (RIN), type: line,                  data: "excel:datos.xlsx#reservas!rin"}
+      - {name: Tipo de cambio, type: line, axis: secondary, data: "excel:datos.xlsx#reservas!tipo_cambio"}
+
+  # Daily data (ISO dates); the axis labels by month over this span.
+  - id: tipo_cambio_diario
+    title: Tipo de cambio
+    subtitle: PEN/USD, diario
+    source: BCRP
+    period: 2024-01-02:2024-04-26
+    series:
+      - {name: PEN/USD, type: line, data: "excel:datos.xlsx#diario!pen_usd"}
+
+  # 3+ lines marked at the last point → labels fan out to the right.
+  - id: tres_series
+    title: Tres series — Perú
+    subtitle: etiquetas a la derecha del último punto
+    period: 2021Q1:2024Q4
+    series:
+      - {name: Serie A, type: line, mark: {at: last, marker: true}, data: [2, 3, 5, 7, 8, 7, 6, 5, 4, 4, 3.5, 3, 2.8, 2.5, 2.3, 2.2]}
+      - {name: Serie B, type: line, mark: {at: last, marker: true}, data: [1, 2, 3, 4, 5, 5, 4, 4, 3, 3, 3, 2.5, 2.4, 2.2, 2.1, 2.0]}
+      - {name: Serie C, type: line, mark: {at: last, marker: true}, data: [3, 3, 2, 2, 2, 2.5, 3, 3, 2.5, 2, 2, 2, 1.9, 1.9, 1.8, 1.8]}

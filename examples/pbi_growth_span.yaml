@@ -1,0 +1,12 @@
+title: PBI real — Perú
+subtitle: var. % anual
+source: BCRP
+theme: bbva
+period: 2022Q1:2024Q4
+series:
+  - name: PBI
+    type: bar
+    data: "excel:datos.xlsx#pbi_growth!pbi"
+annotations:
+  - hline: 0
+  - {span: {from: 2022Q4, to: 2023Q3, label: Contracción}, color: orange}

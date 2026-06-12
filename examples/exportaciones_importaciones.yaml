@@ -1,0 +1,12 @@
+title: Comercio exterior — Perú
+subtitle: var. % anual
+source: BCRP
+theme: bbva
+period: 2023Q1:2024Q4
+series:
+  - name: Exportaciones
+    type: bar
+    data: "excel:datos.xlsx#comercio!exportaciones"
+  - name: Importaciones
+    type: bar
+    data: "excel:datos.xlsx#comercio!importaciones"

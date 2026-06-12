@@ -1,0 +1,14 @@
+title: Inflación — Perú
+subtitle: var. % anual del IPC
+source: BCRP
+theme: bbva
+period: 2021Q1:2024Q4
+series:
+  - name: Inflación total
+    type: line
+    data: "excel:datos.xlsx#inflacion!total"
+    mark: {at: last, marker: true, value: true}
+  - name: Inflación subyacente
+    type: line
+    data: "excel:datos.xlsx#inflacion!subyacente"
+    mark: {at: last, marker: true, value: true}

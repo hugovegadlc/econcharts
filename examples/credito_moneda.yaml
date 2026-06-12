@@ -1,0 +1,12 @@
+title: Crédito al sector privado — Perú
+subtitle: por moneda, % del PBI
+source: BCRP
+theme: bbva
+period: 2023Q1:2024Q4
+series:
+  - name: Soles
+    type: area
+    data: "excel:datos.xlsx#credito!soles"
+  - name: Dólares
+    type: area
+    data: "excel:datos.xlsx#credito!dolares"

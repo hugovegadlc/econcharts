@@ -1,0 +1,106 @@
+# BBVA house style — econcharts reference theme. SINGLE SOURCE OF TRUTH.
+# Extracted from the BBVA add-in (Addin_BBVA_2025.xlam, "Version 3", May 2025).
+# The author edits THIS file only; theme.py consumes it (no .mplstyle on disk).
+#
+# Colors are named ONCE in `colors`; every other section (cycle, annotations, rc)
+# and every chart spec refers to those NAMES, never raw hex. theme.py resolves a
+# name to its hex wherever one appears.
+
+# --- the theme's full named palette (name -> hex), defined once ---------------
+colors:
+  # series palette: BBVA 2025 setColor() auxColor 1-12
+  blue:       "#001391"   # primary brand
+  lightblue:  "#85C8FF"
+  green:      "#88E783"
+  orange:     "#FFB56B"
+  yellow:     "#FFE761"
+  cyan:       "#8BE1E9"
+  purple:     "#9694FF"
+  grey:       "#ADB8C2"
+  red:        "#FF8585"
+  teal:       "#108C97"
+  gold:       "#FFC552"
+  darkgreen:  "#024700"
+  # structural / text colors (auxColor 13-14 + brand inks), not in the series cycle
+  structural: "#CAD1D8"   # auxColor 13 — gridlines + x baseline
+  ink:        "#072146"   # dark brand navy — body text / axis labels
+  slate:      "#46536D"   # legend + grey-annotation text
+  amber:      "#B98409"   # auxColor 14 — orange-annotation label
+
+# --- series prop_cycle, by NAME (order matters) -------------------------------
+cycle: [blue, lightblue, green, orange, yellow, cyan, purple, grey, red, teal, gold, darkgreen]
+
+# --- annotation form vocabulary (the small grey/orange/blue set a spec picks
+#     from) -> theme colors, per role. Values are color NAMES. ------------------
+annotations:
+  line:   {grey: slate, orange: orange, blue: blue}        # reference lines
+  fill:   {grey: grey,  orange: orange, blue: lightblue}   # span/band shading
+  label:  {grey: slate, orange: amber,  blue: blue}        # region label text
+  fill_alpha: 0.25
+  weights: {thin: 1.0, thick: 2.0}
+  lines:   {solid: "-", dotted: ":"}
+
+# --- date-axis label formats, per DISPLAY granularity (which may be coarser than
+#     the data: daily data can be labeled by month/quarter/year on a long span).
+#     Each granularity names one or more styles + a default; a chart selects a style
+#     by NAME. Patterns use tokens {yyyy} {yy} {q} {mmm} {d}; for Q, {mmm} is the
+#     quarter's CLOSING month. es-PE month abbrevs live in theme.py. ----------------
+date_labels:
+  D: {options: {plain: "{d}-{mmm}", dotted: "{d}-{mmm}."},   default: plain}   # 15-jul / 15-jul.
+  M: {options: {plain: "{mmm}-{yy}", dotted: "{mmm}.-{yy}"}, default: plain}   # mar-24 / mar.-24
+  Q: {options: {quarter: "{q}T{yy}", month: "{mmm}-{yy}"},   default: month}   # mar-24 / 1T24
+  Y: {options: {full: "{yyyy}"},                             default: full}    # 2024
+
+# --- matplotlib rcParams (form). Values matching a color name resolve to its hex.
+#     `figure.figsize` here is only a fallback; render() sets the named size. -----
+rc:
+  figure.figsize:        [3.346, 2.756]
+  figure.facecolor:      "none"
+  savefig.facecolor:     "none"
+  savefig.transparent:   true
+
+  font.family:           sans-serif
+  font.sans-serif:       [Arial, Helvetica, Liberation Sans, DejaVu Sans]
+  font.size:             8
+  axes.titlesize:        11
+  axes.labelsize:        8
+  xtick.labelsize:       8
+  ytick.labelsize:       8
+  legend.fontsize:       8
+
+  axes.spines.top:       false
+  axes.spines.right:     false
+  axes.spines.left:      false
+  axes.spines.bottom:    true
+  axes.edgecolor:        structural
+  axes.linewidth:        0.8
+
+  text.color:            ink
+  axes.labelcolor:       ink
+  xtick.color:           blue
+  ytick.color:           grey
+  axes.titlecolor:       blue
+  axes.titlelocation:    left
+  axes.titleweight:      bold
+
+  axes.grid:             true
+  axes.grid.axis:        y
+  grid.color:            structural
+  grid.linewidth:        0.5
+  grid.alpha:            1.0
+
+  xtick.direction:       out
+  ytick.direction:       out
+  xtick.major.size:      3
+  ytick.major.size:      0
+  ytick.major.pad:       2
+
+  lines.linewidth:       2.0
+  lines.solid_capstyle:  round
+
+  legend.frameon:        false
+  legend.loc:            lower left
+  legend.labelcolor:     slate
+  legend.handlelength:   1.4
+  legend.columnspacing:  1.2
+  legend.borderaxespad:  0.0

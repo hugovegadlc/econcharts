@@ -1,0 +1,18 @@
+# Title and subtitle intentionally omitted — they live on the slide/document.
+# The axes scale to fill the freed space (see render._apply_titles).
+source: BCRP
+theme: bbva
+period: 2023Q1:2024Q4
+series:
+  - name: Consumo
+    type: stacked
+    data: "excel:datos.xlsx#contribuciones!consumo"
+  - name: Inversión
+    type: stacked
+    data: "excel:datos.xlsx#contribuciones!inversion"
+  - name: Sector externo
+    type: stacked
+    data: "excel:datos.xlsx#contribuciones!sector_externo"
+  - name: PBI
+    type: line
+    data: "excel:datos.xlsx#contribuciones!pbi"
