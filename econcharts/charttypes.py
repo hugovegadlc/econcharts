@@ -101,11 +101,12 @@ class ChartType:
         raise NotImplementedError
 
     def place_marks(self, ax, series, periods, x, y, color: str, decimals: int,
-                    ctx: RenderContext, geom: Geom, theme) -> None:
+                    ctx: RenderContext, geom: Geom, theme,
+                    placed: list[marks.PlacedMark]) -> None:
         for i in marks.mark_indices(series, periods):
-            self._mark_one(ax, series.mark, i, x, y, geom, color, decimals, ctx, theme)
+            self._mark_one(ax, series.mark, i, x, y, geom, color, decimals, ctx, theme, placed)
 
-    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme) -> None:
+    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme, placed) -> None:
         raise NotImplementedError
 
 
@@ -125,10 +126,10 @@ class BarType(ChartType):
         draw_bar(ax, x, y, color, series.legend_label, ctx, (geom.index, geom.count))
         return geom
 
-    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme):
+    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme, placed):
         # the label sits over the dodged bar, not the period centre
         offset = (geom.index - (geom.count - 1) / 2) * (ctx.step * ctx.bar_width_frac / geom.count)
-        marks.bar_mark(ax, mark, x[i] + offset, y[i], color, decimals)
+        marks.bar_mark(ax, mark, x[i] + offset, y[i], color, decimals, placed)
 
 
 class AreaType(ChartType):
@@ -139,8 +140,8 @@ class AreaType(ChartType):
         state.area_cum.update(dict(zip(periods, top)))   # next area stacks on top
         return AreaGeom(top=top)
 
-    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme):
-        marks.area_mark(ax, mark, x[i], geom.top[i], y[i], color, decimals)
+    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme, placed):
+        marks.area_mark(ax, mark, x[i], geom.top[i], y[i], color, decimals, placed)
 
 
 class StackedType(ChartType):
@@ -153,9 +154,9 @@ class StackedType(ChartType):
             (state.pos_cum if v >= 0 else state.neg_cum)[p] = b + v
         return StackedGeom(bottoms=bottoms, vals=vals)
 
-    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme):
+    def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme, placed):
         marks.stacked_mark(ax, mark, x[i], geom.bottoms[i], geom.vals[i],
-                           color, decimals, ctx, theme)
+                           color, decimals, ctx, theme, placed)
 
 
 CHART_TYPES: dict[str, ChartType] = {

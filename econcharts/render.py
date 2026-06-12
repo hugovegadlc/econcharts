@@ -107,7 +107,7 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         # AXES inside a fixed-size figure — the figure never grows to fit content.
         fig, ax = plt.subplots(figsize=theme.figsize(size), layout="constrained")
         ax2 = ax.twinx() if any(s.axis == "secondary" for s in spec.series) else None
-        _draw_series(ax, ax2, spec, long_df, theme)
+        placed, placed2 = _draw_series(ax, ax2, spec, long_df, theme)
         has_bars = any(s.type in ("bar", "stacked") for s in spec.series)
         # vlines sit BETWEEN bars (period boundary) on bar/stacked charts, but AT
         # the data point (midpoint) on line/area charts; span edges always snap to
@@ -126,9 +126,9 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         _apply_legend(fig, ax, ax2, spec)
         # marks (dots/value labels): hide stacked labels that don't fit their
         # segment, then grow the axis limits so edge labels aren't clipped.
-        for a in (ax, ax2):
+        for a, a_placed in ((ax, placed), (ax2, placed2)):
             if a is not None:
-                _finalize_marks(a, theme)
+                _finalize_marks(a, a_placed, theme)
     return fig
 
 
@@ -179,31 +179,37 @@ def _resolve_framed(spec: Spec, data_root):
 
 # --- drawing -----------------------------------------------------------------
 
-def _draw_series(ax, ax2, spec: Spec, long_df: pd.DataFrame, theme: Theme) -> None:
+def _draw_series(ax, ax2, spec: Spec, long_df: pd.DataFrame, theme: Theme):
     """Route each series to its axis (primary or secondary) and draw the group.
 
     Stacking/grouping accumulators are independent per axis; the palette color is
     keyed to the GLOBAL series index so colors stay consistent across both.
+    Returns the two axes' PlacedMark lists for `_finalize_marks`.
     """
     ctx = _build_context(long_df)
     indexed = list(enumerate(spec.series))
-    _draw_group(ax, [(i, s) for i, s in indexed if s.axis == "primary"], long_df, theme, ctx)
+    placed = _draw_group(ax, [(i, s) for i, s in indexed if s.axis == "primary"],
+                         long_df, theme, ctx)
+    placed2: list = []
     if ax2 is not None:
-        _draw_group(ax2, [(i, s) for i, s in indexed if s.axis == "secondary"],
-                    long_df, theme, ctx)
+        placed2 = _draw_group(ax2, [(i, s) for i, s in indexed if s.axis == "secondary"],
+                              long_df, theme, ctx)
+    return placed, placed2
 
 
 def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
-                ctx: charttypes.RenderContext) -> None:
+                ctx: charttypes.RenderContext) -> list[_marks.PlacedMark]:
     """Draw a set of (global_index, series) onto one Axes, with its own stacking.
 
     All type-specific behaviour (stacking, dodging, mark placement) lives on the
     strategy classes in `charttypes.CHART_TYPES`; this loop just walks the series
-    in spec order with the group's shared accumulator state.
+    in spec order with the group's shared accumulator state. Returns the marks
+    placed on this axes (the records `_finalize_marks` post-processes).
     """
     state = charttypes.GroupState(bar_count=sum(1 for _, s in items if s.type == "bar"))
     mark_decimals = _mark_decimals(items, long_df)  # consistent decimals across the axis
     line_marks: list = []   # collected so line label sides can be chosen across series
+    placed: list[_marks.PlacedMark] = []
     for i, s in items:
         sub = long_df[long_df["series"] == s.name].sort_values("period")
         periods = list(sub["period"])
@@ -222,17 +228,21 @@ def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
             if ctype.defer_marks:
                 line_marks.append((s, periods, x, y, color))
             else:
-                ctype.place_marks(ax, s, periods, x, y, color, mark_decimals, ctx, geom, theme)
+                ctype.place_marks(ax, s, periods, x, y, color, mark_decimals, ctx, geom,
+                                  theme, placed)
     if line_marks:
-        _marks.draw_line_marks(ax, line_marks, mark_decimals)
+        _marks.draw_line_marks(ax, line_marks, mark_decimals, placed)
+    return placed
 
 
-def _finalize_marks(ax, theme: Theme) -> None:
+def _finalize_marks(ax, placed: list[_marks.PlacedMark], theme: Theme) -> None:
     """Post-draw mark cleanup: hide stacked labels that don't fit their segment,
     then grow xlim/ylim so the remaining dots/labels aren't clipped at an edge.
+
+    `placed` is the explicit record list mark placement produced — each entry is
+    one artist plus the adjustment its kind needs (see marks.PlacedMark).
     """
-    arts = [a for a in ax.findobj() if a.get_gid() == _marks.MARK_GID]
-    if not arts:
+    if not placed:
         return
     fig = ax.figure
     base_xlim, base_ylim = ax.get_xlim(), ax.get_ylim()  # intended limits, before any moves
@@ -240,37 +250,35 @@ def _finalize_marks(ax, theme: Theme) -> None:
     renderer = fig.canvas.get_renderer()
 
     # 1) stacked labels: hide any that don't fit their segment (height or width).
-    for a in arts:
-        fit = getattr(a, "_econ_fit", None)
-        if fit is None:
+    for pm in placed:
+        if pm.fit is None:
             continue
-        y0d, y1d, xc, bar_w = fit
-        seg_h = abs(ax.transData.transform((xc, y1d))[1] - ax.transData.transform((xc, y0d))[1])
-        bar_px = abs(ax.transData.transform((xc + bar_w / 2, y0d))[0]
-                     - ax.transData.transform((xc - bar_w / 2, y0d))[0])
-        bb = a.get_window_extent(renderer)
+        f = pm.fit
+        seg_h = abs(ax.transData.transform((f.xc, f.y1))[1] - ax.transData.transform((f.xc, f.y0))[1])
+        bar_px = abs(ax.transData.transform((f.xc + f.bar_w / 2, f.y0))[0]
+                     - ax.transData.transform((f.xc - f.bar_w / 2, f.y0))[0])
+        bb = pm.artist.get_window_extent(renderer)
         if bb.height > seg_h or bb.width > bar_px:
-            a.set_visible(False)
+            pm.artist.set_visible(False)
 
     # 1b) above/below line labels: offset perpendicular to the line's local slope
     #     (final transform), by the label's own reach along that direction plus a
     #     constant gap — so the clearance is the same on flat and steep sections.
     moved = False
     dpi72 = fig.dpi / 72.0
-    for a in arts:
-        perp = getattr(a, "_econ_perp", None)
-        if perp is None:
+    for pm in placed:
+        if pm.perp is None:
             continue
-        ox, oy = _marks.perp_unit(ax, *perp)
-        bb = a.get_window_extent(renderer)
+        ox, oy = _marks.perp_unit(ax, pm.perp)
+        bb = pm.artist.get_window_extent(renderer)
         reach = abs(ox) * (bb.width / 2) + abs(oy) * (bb.height / 2)   # px toward the line
         dist = reach / dpi72 + _marks.PERP_GAP                          # -> points
-        a.xyann = (ox * dist, oy * dist)
+        pm.artist.xyann = (ox * dist, oy * dist)
         moved = True
 
     # 1c) right-of-endpoint labels (3+ lines at the last point): if their endpoints
     #     are too close, spread them evenly (value order kept) with leader lines.
-    if _spread_right_labels(ax, renderer, theme):
+    if _spread_right_labels(ax, renderer, theme, placed):
         moved = True
     if moved:
         fig.draw_without_rendering()
@@ -286,7 +294,8 @@ def _finalize_marks(ax, theme: Theme) -> None:
     xspan, yspan = abs(x1 - x0), abs(y1 - y0)
     xmin, xmax = min(x0, x1), max(x0, x1)
     ymin, ymax = min(y0, y1), max(y0, y1)
-    for a in arts:
+    for pm in placed:
+        a = pm.artist
         if not a.get_visible():
             continue
         bb = a.get_window_extent(renderer)
@@ -303,17 +312,17 @@ def _finalize_marks(ax, theme: Theme) -> None:
     ax.set_ylim(ymin, ymax) if y0 <= y1 else ax.set_ylim(ymax, ymin)
 
 
-def _spread_right_labels(ax, renderer, theme: Theme) -> bool:
+def _spread_right_labels(ax, renderer, theme: Theme,
+                         placed: list[_marks.PlacedMark]) -> bool:
     """Vertically separate right-of-endpoint labels when their points are too
     close, preserving value order, and draw a leader from each label to its point.
     Returns True if anything moved (so the caller re-measures)."""
-    labels = [a for a in ax.findobj() if getattr(a, "_econ_right", None) is not None]
+    labels = [(pm.artist, pm.right_anchor) for pm in placed if pm.right_anchor is not None]
     if len(labels) < 2:
         return False
     dpi72 = ax.figure.dpi / 72.0
     info = []
-    for L in labels:
-        xi, yi = L._econ_right
+    for L, (xi, yi) in labels:
         adx, ady = ax.transData.transform((xi, yi))
         bb = L.get_window_extent(renderer)
         info.append((L, xi, yi, adx, ady, bb.height))
@@ -329,7 +338,6 @@ def _spread_right_labels(ax, renderer, theme: Theme) -> bool:
         L.xyann = (dx, (ty - ady) / dpi72)                 # move label to its slot
         ex, ey = ax.transData.inverted().transform((adx + dx * dpi72, ty))
         leader, = ax.plot([xi, ex], [yi, ey], color=theme.colors["leadergrey"], lw=0.6, zorder=3.8)
-        leader.set_gid(_marks.MARK_GID)
         leader.set_in_layout(False)
     return True
 

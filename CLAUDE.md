@@ -84,7 +84,7 @@ matplotlib's weak spot is label collision; econcharts handles it **deterministic
 - Placement primitives in `marks.py`: line → dot + label on the outer side of the curve; bar → above (below if negative); area → above the curve; stacked → centered in the segment with auto white/navy contrast.
 - Cross-series rules in `draw_line_marks`: at a shared x the lowest goes below, rest above; 3+ series at the last point go right of the endpoint.
 - `render._finalize_marks` post-processes after layout: hides stacked labels that don't fit their segment, offsets line labels perpendicular to the local slope (constant visual gap), spreads cramped right-labels with leader lines, then grows axis limits (capped) so nothing clips.
-- Marks carry `gid = marks.MARK_GID` and `set_in_layout(False)` so constrained layout ignores them.
+- Placement appends one `marks.PlacedMark` record per artist (with optional `SegmentFit`/`PerpSpec`/right-anchor) to a list render threads through — the **explicit contract** `_finalize_marks` iterates (no artist scanning or attribute smuggling). Mark artists are `set_in_layout(False)` so constrained layout ignores them.
 
 ## Renderer & output
 - One `render(spec, size) -> Figure`; `save(fig, out, backend)` infers the backend from the suffix. **No `bbox_inches="tight"`** — the figure must save at its exact named physical size; constrained layout fits content *within* the fixed figsize instead.
