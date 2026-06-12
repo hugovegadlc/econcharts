@@ -66,8 +66,8 @@ def test_stacked_layers_accumulate_by_sign(ax):
     x = np.array([0.0, 1.0])
     periods = ["p1", "p2"]  # any hashable keys the accumulators can track
 
-    g1 = stacked.draw(ax, s1, x, np.array([1.0, -1.0]), periods, "#001391", ctx, state)
-    g2 = stacked.draw(ax, s2, x, np.array([2.0, -2.0]), periods, "#85C8FF", ctx, state)
+    g1 = stacked.draw(ax, s1, x, np.array([1.0, -1.0]), periods, "#001391", ctx, state, None)
+    g2 = stacked.draw(ax, s2, x, np.array([2.0, -2.0]), periods, "#85C8FF", ctx, state, None)
 
     assert list(g1.bottoms) == [0.0, 0.0]
     assert list(g2.bottoms) == [1.0, -1.0]  # second layer sits on the first, per sign
@@ -82,8 +82,8 @@ def test_dodged_bars_take_consecutive_slots(ax):
     bar = charttypes.chart_type("bar")
     x, y = np.array([0.0, 1.0]), np.array([1.0, 2.0])
 
-    g1 = bar.draw(ax, Series(name="a", data=[0], type="bar"), x, y, [], "#001391", ctx, state)
-    g2 = bar.draw(ax, Series(name="b", data=[0], type="bar"), x, y, [], "#85C8FF", ctx, state)
+    g1 = bar.draw(ax, Series(name="a", data=[0], type="bar"), x, y, [], "#001391", ctx, state, None)
+    g2 = bar.draw(ax, Series(name="b", data=[0], type="bar"), x, y, [], "#85C8FF", ctx, state, None)
 
     assert (g1.index, g1.count) == (0, 2)
     assert (g2.index, g2.count) == (1, 2)

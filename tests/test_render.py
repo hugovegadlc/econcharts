@@ -888,3 +888,43 @@ def test_image_no_title():
     from conftest import EXAMPLES
 
     return render(Spec.from_yaml(EXAMPLES / "pbi_contribuciones_sin_titulo.yaml"), size="slides_full")
+
+
+def test_highlight_recolors_chosen_bars_and_their_labels():
+    from matplotlib.colors import to_hex
+
+    spec = Spec.from_dict({
+        "title": "T", "period": "2021:2024",
+        "series": [{"name": "A", "type": "bar", "data": [1, 2, 3, 4],
+                    "highlight": "last", "mark": "last"}],
+    })
+    ax = render(spec).axes[0]
+    colors = [to_hex(p.get_facecolor()).lower() for p in ax.patches]
+    assert colors[:3] == ["#001391"] * 3   # base bars keep the palette primary
+    assert colors[3] == "#85c8ff"          # theme default highlight (lightblue)
+    # the value label on the highlighted bar matches its bar
+    label = [t for t in ax.texts if t.get_text()][-1]
+    assert to_hex(label.get_color()).lower() == "#85c8ff"
+
+
+def test_highlight_named_color_at_token():
+    from matplotlib.colors import to_hex
+
+    spec = Spec.from_dict({
+        "title": "T", "period": "2021:2024",
+        "series": [{"name": "A", "type": "bar", "data": [1, 2, 3, 4],
+                    "highlight": {"at": "2022", "color": "orange"}}],
+    })
+    ax = render(spec).axes[0]
+    colors = [to_hex(p.get_facecolor()).lower() for p in ax.patches]
+    assert colors == ["#001391", "#ffb56b", "#001391", "#001391"]
+
+
+def test_unknown_highlight_color_raises_render_error_naming_series():
+    spec = Spec.from_dict({
+        "title": "T", "period": "2021:2024",
+        "series": [{"name": "A", "type": "bar", "data": [1, 2, 3, 4],
+                    "highlight": {"at": "last", "color": "chartreuse"}}],
+    })
+    with pytest.raises(RenderError, match="'A'.*unknown color 'chartreuse'"):
+        render(spec)

@@ -16,8 +16,8 @@ Automated production of publication-quality economic charts from a minimal, subs
 - **README.md** — public-facing overview + dev quickstart.
 - This file — design rationale, architecture, conventions, status.
 
-## Status (v0.1.0 — feature-complete core)
-Done: line/bar/area/stacked (+ combinations, secondary axis), per-series marks with deterministic label placement, hline/vline/span/band annotations, adaptive daily→yearly date axis, authoritative `period` framing with `start`/`end` tokens, Excel + inline data, bbva theme, named export sizes, batch documents → figures + PPTX deck, CLI, frozen Windows exe (ship/), 182 tests incl. golden images.
+## Status (v0.2.x — feature-complete core)
+Done: line/bar/area/stacked (+ combinations, secondary axis), per-series marks with deterministic label placement, per-series bar `highlight` (emphasis recoloring), hline/vline/span/band annotations, adaptive daily→yearly date axis, authoritative `period` framing with `start`/`end` tokens, Excel + inline data, bbva theme, named export sizes, batch documents → figures + PPTX deck, CLI, frozen Windows exe (ship/), 192 tests incl. golden images.
 
 Backlog (build in this order when asked): domain registry (`recessions:`/`target:`/event marks — `registry/` dir exists but is empty; tokens are YAML data, not code), polished svg/pdf backends (`svg.fonttype: "none"` for LaTeX), gsheet/db resolvers (db hits tsdb-api at `db.simgol.net`), `fan` chart type (PyBEAR forecast bands), facets, slim bundle (drop scipy), AI authoring layer **last**.
 

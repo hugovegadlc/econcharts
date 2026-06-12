@@ -110,6 +110,19 @@ class MarkSpec(BaseModel):
     text: Optional[str] = None  # custom text that replaces the value at a single point
 
 
+class HighlightSpec(BaseModel):
+    """Recolor chosen bars within a bar series (emphasis: forecast years, the
+    latest datum). `at` uses the mark grammar minus "all": "last" | a period
+    token | a list of tokens. `color` picks a theme palette color by NAME;
+    omitted, the theme's own `highlight` color is used.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    at: Union[str, list[str]]
+    color: Optional[str] = None
+
+
 class Series(BaseModel):
     """One plotted series. `type` is required — there is no chart-level default."""
 
@@ -121,6 +134,8 @@ class Series(BaseModel):
     axis: Axis = "primary"
     label: Optional[str] = None
     mark: Optional[MarkSpec] = None
+    # Emphasis recoloring for chosen bars (bar series only) — see HighlightSpec.
+    highlight: Optional[HighlightSpec] = None
     # Form overrides. `color` pins the series to a theme palette color by NAME (not
     # a raw hex — validated against the theme at render); `line` switches the stroke
     # (line series only). Both default to the theme's automatic choice.
@@ -131,10 +146,10 @@ class Series(BaseModel):
     def legend_label(self) -> str:
         return self.label or self.name
 
-    @field_validator("mark", mode="before")
+    @field_validator("mark", "highlight", mode="before")
     @classmethod
-    def _coerce_mark_shorthand(cls, v):
-        # mark: last  /  mark: [2020Q2, 2021Q1]  ->  {at: ...}
+    def _coerce_at_shorthand(cls, v):
+        # mark: last / mark: [2020Q2, 2021Q1] -> {at: ...}; same for highlight.
         if isinstance(v, (str, list)):
             return {"at": v}
         return v
@@ -144,6 +159,20 @@ class Series(BaseModel):
         if self.line != "solid" and self.type != "line":
             raise ValueError(
                 f"series {self.name!r}: `line` style is only for line series, not {self.type!r}"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_highlight(self):
+        if self.highlight is None:
+            return self
+        if self.type != "bar":
+            raise ValueError(
+                f"series {self.name!r}: `highlight` is only for bar series, not {self.type!r}"
+            )
+        if self.highlight.at == "all":
+            raise ValueError(
+                f"series {self.name!r}: highlight.at 'all' recolors every bar — use `color` instead"
             )
         return self
 

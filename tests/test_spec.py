@@ -185,3 +185,32 @@ def test_example_yaml_loads(example_spec):
     assert example_spec.period == "2021Q1:2024Q4"
     assert [s.name for s in example_spec.series] == ["Inflación total", "Inflación subyacente"]
     assert example_spec.source == "BCRP"  # parsed as metadata even though not drawn
+
+
+def test_highlight_shorthand_coerces_to_at():
+    spec = Spec.from_dict(_minimal(series=[
+        {"name": "A", "type": "bar", "data": [1, 2], "highlight": "last"}]))
+    assert spec.series[0].highlight.at == "last"
+    assert spec.series[0].highlight.color is None
+
+
+def test_highlight_mapping_parses():
+    spec = Spec.from_dict(_minimal(series=[
+        {"name": "A", "type": "bar", "data": [1, 2],
+         "highlight": {"at": ["2026", "2027"], "color": "blue"}}]))
+    assert spec.series[0].highlight.at == ["2026", "2027"]
+    assert spec.series[0].highlight.color == "blue"
+
+
+def test_highlight_on_non_bar_rejected():
+    with pytest.raises(SpecError) as e:
+        Spec.from_dict(_minimal(series=[
+            {"name": "A", "type": "line", "data": [1, 2], "highlight": "last"}]))
+    assert "only for bar series" in str(e.value)
+
+
+def test_highlight_at_all_rejected():
+    with pytest.raises(SpecError) as e:
+        Spec.from_dict(_minimal(series=[
+            {"name": "A", "type": "bar", "data": [1, 2], "highlight": "all"}]))
+    assert "use `color` instead" in str(e.value)

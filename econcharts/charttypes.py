@@ -58,6 +58,7 @@ class GroupState:
 class BarGeom:
     index: int                   # this bar's dodge slot among the group's bars
     count: int
+    colors: tuple[str, ...] | None = None  # per-bar colors when some bars are highlighted
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,7 @@ class ChartType:
     defer_marks = False
 
     def draw(self, ax, series, x, y, periods, color: str, ctx: RenderContext,
-             state: GroupState) -> Geom:
+             state: GroupState, theme) -> Geom:
         raise NotImplementedError
 
     def place_marks(self, ax, series, periods, x, y, color: str, decimals: int,
@@ -113,27 +114,30 @@ class ChartType:
 class LineType(ChartType):
     defer_marks = True   # placed cross-series by marks.draw_line_marks
 
-    def draw(self, ax, series, x, y, periods, color, ctx, state) -> Geom:
+    def draw(self, ax, series, x, y, periods, color, ctx, state, theme) -> Geom:
         draw_line(ax, x, y, color, series.legend_label, ctx, (0, 1),
                   LINESTYLES[series.line])
         return None
 
 
 class BarType(ChartType):
-    def draw(self, ax, series, x, y, periods, color, ctx, state) -> BarGeom:
-        geom = BarGeom(index=state.bar_seen, count=state.bar_count)
+    def draw(self, ax, series, x, y, periods, color, ctx, state, theme) -> BarGeom:
+        colors = _highlight_colors(series, periods, color, theme)
+        geom = BarGeom(index=state.bar_seen, count=state.bar_count, colors=colors)
         state.bar_seen += 1
-        draw_bar(ax, x, y, color, series.legend_label, ctx, (geom.index, geom.count))
+        draw_bar(ax, x, y, colors or color, series.legend_label, ctx,
+                 (geom.index, geom.count))
         return geom
 
     def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme, placed):
         # the label sits over the dodged bar, not the period centre
         offset = (geom.index - (geom.count - 1) / 2) * (ctx.step * ctx.bar_width_frac / geom.count)
-        marks.bar_mark(ax, mark, x[i] + offset, y[i], color, decimals, placed)
+        c = geom.colors[i] if geom.colors else color   # label matches its bar
+        marks.bar_mark(ax, mark, x[i] + offset, y[i], c, decimals, placed)
 
 
 class AreaType(ChartType):
-    def draw(self, ax, series, x, y, periods, color, ctx, state) -> AreaGeom:
+    def draw(self, ax, series, x, y, periods, color, ctx, state, theme) -> AreaGeom:
         base = np.array([state.area_cum.get(p, 0.0) for p in periods])
         top = base + y
         draw_area_band(ax, x, base, top, color, series.legend_label)
@@ -145,7 +149,7 @@ class AreaType(ChartType):
 
 
 class StackedType(ChartType):
-    def draw(self, ax, series, x, y, periods, color, ctx, state) -> StackedGeom:
+    def draw(self, ax, series, x, y, periods, color, ctx, state, theme) -> StackedGeom:
         vals = np.where(np.isfinite(y), y, 0.0)
         bottoms = np.array([(state.pos_cum if v >= 0 else state.neg_cum).get(p, 0.0)
                             for p, v in zip(periods, vals)])
@@ -176,6 +180,23 @@ def chart_type(kind: str) -> ChartType:
         raise ChartTypeError(
             f"chart type {kind!r} not supported yet (have: {supported})"
         ) from None
+
+
+def _highlight_colors(series, periods, base: str, theme) -> tuple[str, ...] | None:
+    """Per-bar colors when the series highlights some periods (else None).
+
+    The highlighted periods take the spec's named color (or the theme's own
+    `highlight` color); the rest keep the series color. `at` resolution shares
+    the mark grammar, including the no-match warning."""
+    h = series.highlight
+    if h is None:
+        return None
+    accent = theme.resolve_color(h.color) if h.color else theme.highlight_color()
+    out = [base] * len(periods)
+    for i in marks.at_indices(h.at, periods,
+                              owner=f"series {series.name!r}", field="highlight.at"):
+        out[i] = accent
+    return tuple(out)
 
 
 # --- drawing primitives ----------------------------------------------------------
@@ -230,6 +251,7 @@ def draw_bar(ax, x, y, color, label, ctx, group) -> None:
     """Grouped (dodged) bars: the period's bar slot is split evenly across the
     `count` bar series; this series takes its `index` sub-slot. When grouped, a
     small gap separates adjacent bars (single bars keep the full slot width).
+    `color` is one color, or a per-bar sequence when some bars are highlighted.
     """
     index, count = group
     subslot = ctx.step * ctx.bar_width_frac / count

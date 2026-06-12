@@ -44,6 +44,7 @@ with errors naming the offending key.
 | `axis` | `primary`\|`secondary` | default `primary` |
 | `label` | string? | overrides the legend display name (default = `name`) |
 | `mark` | map \| shorthand | data-label marks — see **Mark** |
+| `highlight` | map \| shorthand | recolor chosen bars (emphasis); **bar series only** — see **Highlight** |
 | `color` | string? | selects a **theme palette color by name** (not hex) |
 | `line` | `solid`\|`dashed`\|`dotted` | stroke; **line series only**; default `solid` |
 
@@ -63,6 +64,17 @@ a total line).
 Shorthand: `mark: last` or `mark: [2020Q2, 2021Q1]` → `{at: …}`. A line mark needs at
 least one of `marker` / `value` / `text`. `mark: last` on a partial series marks **that
 series'** last real point (≠ the sample end).
+
+## Highlight (per-series bar emphasis)
+| key | type | notes |
+|-----|------|-------|
+| `at` | `last`\|token\|[tokens] | which bars take the highlight color (`all` is rejected — use `color`) |
+| `color` | string? | theme palette color by name; default = the theme's own `highlight` color |
+
+Shorthand: `highlight: last` or `highlight: [2026, 2027]` → `{at: …}`. **Bar series
+only** — the BBVA pattern of emphasizing the forecast years or the latest bar within a
+(typically single-series) bar chart. Non-highlighted bars keep the series color; a
+value-label mark on a highlighted bar takes its bar's color.
 
 ## Annotations (list; each a tagged map)
 | form | shape | style keys |
@@ -109,6 +121,8 @@ What names a spec may select (the theme owns the values + the default):
 - **series `color`** — palette: `blue lightblue green orange yellow cyan purple grey
   red teal gold darkgreen` + `structural ink slate amber`.
 - **`line`** (series): `solid` `dashed` `dotted` (annotation `line`: `solid` `dotted`).
+- **bar `highlight.color`** — same palette names; omitted → the theme's `highlight`
+  color (bbva: `lightblue`).
 - **annotation `color`**: `grey` `orange` `blue`; **`weight`**: `thin` `thick`.
 - **`date_label`** styles, per display granularity (applied where defined, else default):
   D `plain`(15-jul)/`dotted`(15-jul.) · M `plain`(mar-24)/`dotted`(mar.-24) ·

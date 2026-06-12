@@ -221,8 +221,8 @@ def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
             raise RenderError(f"series {s.name!r}: {e}") from None
         ctype = charttypes.chart_type(s.type)
         try:
-            geom = ctype.draw(ax, s, x, y, periods, color, ctx, state)
-        except charttypes.ChartTypeError as e:
+            geom = ctype.draw(ax, s, x, y, periods, color, ctx, state, theme)
+        except (charttypes.ChartTypeError, ThemeError) as e:
             raise RenderError(f"series {s.name!r}: {e}") from None
         if s.mark is not None:
             if ctype.defer_marks:

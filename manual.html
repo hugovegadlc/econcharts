@@ -97,6 +97,7 @@
   <a href="#spec">The chart spec</a>
   <a href="#spec-series" class="sub">Series</a>
   <a href="#spec-mark" class="sub">Marks</a>
+  <a href="#spec-highlight" class="sub">Highlight</a>
   <a href="#spec-annotations" class="sub">Annotations</a>
   <a href="#spec-data" class="sub">Data</a>
   <a href="#spec-period" class="sub">Period</a>
@@ -217,6 +218,7 @@ charts:
     <tr><td><code>color</code></td><td>Pin a palette colour by name (see <a href="#vocab">vocabularies</a>).</td></tr>
     <tr><td><code>line</code></td><td><code>solid</code> (default) · <code>dashed</code> · <code>dotted</code>. Line series only.</td></tr>
     <tr><td><code>mark</code></td><td>Data labels / dots (see <a href="#spec-mark">Marks</a>).</td></tr>
+    <tr><td><code>highlight</code></td><td>Recolour chosen bars for emphasis. Bar series only (see <a href="#spec-highlight">Highlight</a>).</td></tr>
   </table>
   <p><strong>The type is also the combination rule.</strong> Several <code>bar</code> series sit
   side by side (dodged); several <code>stacked</code> series stack (negatives downward);
@@ -241,6 +243,21 @@ charts:
   <p>Shorthand: <code>mark: last</code> is the same as <code>mark: {at: last}</code>.
   <code>last</code> means <em>that series'</em> last real point — which can differ from the end of
   the sample.</p>
+
+  <h3 id="spec-highlight">Highlight</h3>
+  <p>A <code>highlight</code> recolours chosen bars within a bar series — the house pattern of
+  emphasizing the forecast years or the latest bar in a single-series bar chart.</p>
+  <table class="keys">
+    <tr><td><code>at</code></td><td>Which bars: <code>last</code>, a period token, or a list of tokens.</td></tr>
+    <tr><td><code>color</code></td><td>A palette colour by name. Omitted, the theme's own highlight colour is used (bbva: <code>lightblue</code>).</td></tr>
+  </table>
+  <pre><code>series:
+  - {name: PBI, type: bar, data: "…", highlight: [2026, 2027]}            # forecast years
+  - {name: PBI, type: bar, data: "…", highlight: {at: last, color: orange}}</code></pre>
+  <p>Shorthand: <code>highlight: last</code> is the same as <code>highlight: {at: last}</code>.
+  Bar series only. The other bars keep the series colour, and a value-label mark on a
+  highlighted bar takes its bar's colour. To recolour <em>every</em> bar, use the series
+  <code>color</code> instead.</p>
 
   <h3 id="spec-annotations">Annotations</h3>
   <p>Non-data markup, listed under <code>annotations</code>. Each is one tagged map.</p>
@@ -312,6 +329,8 @@ charts:
   </div>
   <p>Plus structural shades used for text and accents — <code>structural</code>, <code>ink</code>,
   <code>slate</code>, <code>amber</code>, <code>leadergrey</code>, <code>white</code> — also selectable by name.</p>
+  <p>The same names serve a bar <code>highlight.color</code>; when omitted, the theme's default
+  highlight is <code>lightblue</code>.</p>
 
   <h3>Line style · <code>line</code></h3>
   <table class="keys">

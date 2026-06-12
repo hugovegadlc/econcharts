@@ -62,6 +62,7 @@ class Theme:
     ann_weights: dict[str, float] = field(default_factory=dict)
     ann_lines: dict[str, str] = field(default_factory=dict)
     date_labels: dict = field(default_factory=dict)   # granularity -> {options, default}
+    highlight: Optional[str] = None                   # default bar-highlight hex
 
     def style(self):
         """Context manager applying this theme's rcParams (built in memory)."""
@@ -96,6 +97,15 @@ class Theme:
     def annotation_label_color(self, color: str) -> str:
         """The annotation's label-text color (a legible shade of its own color)."""
         return self.ann_label[color]
+
+    def highlight_color(self) -> str:
+        """The default bar-highlight hex (when a spec's `highlight` names no color)."""
+        if self.highlight is None:
+            raise ThemeError(
+                f"theme {self.name!r} defines no `highlight` color; "
+                f"set `highlight.color` in the spec or add `highlight:` to the theme"
+            )
+        return self.highlight
 
     def label_contrast_color(self, fill: str) -> str:
         """White on dark fills, ink on light fills — for labels drawn inside a fill."""
@@ -159,6 +169,12 @@ def load_theme(name: str) -> Theme:
     rc = {k: resolve(v) for k, v in raw.get("rc", {}).items()}
     rc["axes.prop_cycle"] = cycler("color", palette)
 
+    highlight_name = raw.get("highlight")
+    if highlight_name is not None and highlight_name not in colors:
+        raise ThemeError(
+            f"theme {name!r}: highlight names an undefined color {highlight_name!r}"
+        )
+
     ann = raw.get("annotations", {})
     return Theme(
         name=name,
@@ -172,6 +188,7 @@ def load_theme(name: str) -> Theme:
         ann_weights=ann.get("weights", {}),
         ann_lines=ann.get("lines", {}),
         date_labels=raw.get("date_labels", {}),
+        highlight=colors[highlight_name] if highlight_name else None,
     )
 
 

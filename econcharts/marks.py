@@ -72,18 +72,24 @@ class PlacedMark:
     right_anchor: tuple | None = None    # (xi, yi): right-of-endpoint spreading
 
 
-def mark_indices(series, periods) -> list[int]:
-    """The indices a series' mark points to, warning when an explicit token matches
-    nothing — a typo or a date outside the window would otherwise vanish silently.
-    (`all`/`last` are exempt: they legitimately resolve empty on an empty series.)"""
-    indices = _resolve_points(series.mark.at, periods)
-    if not indices and series.mark.at not in ("all", "last"):
+def at_indices(at, periods, *, owner: str, field: str) -> list[int]:
+    """The indices an `at` token set points to, warning when an explicit token
+    matches nothing — a typo or a date outside the window would otherwise vanish
+    silently. (`all`/`last` are exempt: they legitimately resolve empty on an
+    empty series.)"""
+    indices = _resolve_points(at, periods)
+    if not indices and at not in ("all", "last"):
         warnings.warn(
-            f"series {series.name!r}: mark.at {series.mark.at!r} matched no periods "
-            f"(outside the window or wrong token?)",
+            f"{owner}: {field} {at!r} matched no periods (outside the window or wrong token?)",
             UserWarning, stacklevel=2,
         )
     return indices
+
+
+def mark_indices(series, periods) -> list[int]:
+    """The indices a series' mark points to (the `at` grammar, see `at_indices`)."""
+    return at_indices(series.mark.at, periods,
+                      owner=f"series {series.name!r}", field="mark.at")
 
 
 def draw_line_marks(ax, line_series, decimals, placed: list[PlacedMark]) -> None:

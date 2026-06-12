@@ -32,6 +32,10 @@ colors:
 # --- series prop_cycle, by NAME (order matters) -------------------------------
 cycle: [blue, lightblue, green, orange, yellow, cyan, purple, grey, red, teal, gold, darkgreen]
 
+# --- default bar-highlight color (a NAME): the emphasis shade chosen bars take
+#     when a spec writes `highlight: last` without picking a color. ------------
+highlight: lightblue
+
 # --- annotation form vocabulary (the small grey/orange/blue set a spec picks
 #     from) -> theme colors, per role. Values are color NAMES. ------------------
 annotations:
