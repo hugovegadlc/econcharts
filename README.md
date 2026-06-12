@@ -38,11 +38,22 @@ charts:
 
 ## Quickstart (developers)
 
+Work in a per-project virtual environment (a clean, isolated box of just this
+project's packages — not your global/Anaconda install):
+
 ```bash
-pip install -e .
+py -3.14 -m venv .venv          # create the env (clean Python 3.14)
+.venv\Scripts\activate          # use it (prompt shows (.venv))
+pip install -e ".[dev]"         # econcharts + test/build tools, into the env only
+```
+
+Then:
+
+```bash
 econcharts build examples/gallery.yaml      # → figures + gallery.pptx in examples/_gallery/
 econcharts render examples/inflacion_pe.yaml -o chart.png
 econcharts --version
+pytest --mpl                                # run the test suite (with golden images)
 ```
 
 ## Documentation
