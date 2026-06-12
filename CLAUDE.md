@@ -5,133 +5,114 @@ Automated production of publication-quality economic charts from a minimal, subs
 
 ## Core principles
 - **Spec, not code.** Charts are declared in YAML, validated and resolved by deterministic Python, rendered by a fixed engine. No code generation, no AI in the render path.
-- **Substance over form.** The spec carries content + domain semantics only. Every formal choice lives in the theme.
-- **Narrowness is the feature.** Resist adding knobs — each new option is drift toward ggplot. The 80% case needs almost nothing; rare cases use the `style:` escape hatch.
-- **Domain-semantic vocabulary.** Users write in an economist's terms (`recessions`, `target`), not graphics primitives. The registry that resolves these is the project's differentiator.
-- **Hand-authorable first.** The full pipeline must work on hand-written specs before any AI authoring layer exists.
+- **Substance over form.** The spec carries content + domain semantics only. Every formal choice lives in the theme. Overrides are *selections* from theme-named sets (`color: orange`, `line: dashed`), never raw values; the chart-level `style:` block is the sole raw-value escape hatch.
+- **Narrowness is the feature.** Resist adding knobs — each new option is drift toward ggplot.
+- **Domain-semantic vocabulary.** Users write in an economist's terms, not graphics primitives. The registry that resolves tokens like `recessions: peru` / `target: inflation_pe` is the planned differentiator (backlog — not yet implemented).
+- **Hand-authorable first.** The full pipeline works on hand-written specs; an AI authoring layer is a separate, optional, last-built extension.
+
+## Documents — who owns what
+- **GRAMMAR.md** — the **canonical, frozen spec grammar**: every key, vocabulary, and shorthand, including the batch document. When the spec surface changes, GRAMMAR.md is updated in the same change. **Do not duplicate its contents here.**
+- **manual.html** — the user manual shipped in the bundle (self-contained HTML).
+- **README.md** — public-facing overview + dev quickstart.
+- This file — design rationale, architecture, conventions, status.
+
+## Status (v0.1.0 — feature-complete core)
+Done: line/bar/area/stacked (+ combinations, secondary axis), per-series marks with deterministic label placement, hline/vline/span/band annotations, adaptive daily→yearly date axis, authoritative `period` framing with `start`/`end` tokens, Excel + inline data, bbva theme, named export sizes, batch documents → figures + PPTX deck, CLI, frozen Windows exe (ship/), 182 tests incl. golden images.
+
+Backlog (build in this order when asked): domain registry (`recessions:`/`target:`/event marks — `registry/` dir exists but is empty; tokens are YAML data, not code), polished svg/pdf backends (`svg.fonttype: "none"` for LaTeX), gsheet/db resolvers (db hits tsdb-api at `db.simgol.net`), `fan` chart type (PyBEAR forecast bands), facets, slim bundle (drop scipy), AI authoring layer **last**.
 
 ## Pipeline
-`YAML spec → pydantic validate → resolve (data refs + registry tokens) → matplotlib render → output backend (png | svg | pdf)`
+`YAML spec → pydantic validate (spec.py) → resolve data + frame (data.py, render._resolve_framed) → matplotlib render → png | svg | pdf` — and at the batch level: `batch.yaml → per-chart jobs (fail-soft) → figures + .pptx deck`.
 
-## Package layout
+## Repo layout
 ```
 econcharts/
-  spec.py          # pydantic v2 models, YAML load + validation
-  data.py          # DataResolver; ref grammar; returns long df
-  registry.py      # loads domain tokens from registry/*.yaml
-  charttypes.py    # per-series renderers: line / bar / area (+ fan later)
-  annotations.py   # spans, bands, vline/hline, marks
-  theme.py         # theme engine: loads themes/*.yaml, palette, locale/period formatters
-  render.py        # orchestration: spec -> Figure -> output backend
-  cli.py           # econcharts render spec.yaml -o out.png
-themes/
-  bbva.yaml        # reference house style (#001391): colors+names, cycle, annotations, rcParams
-registry/
-  recessions.yaml  # named recession date spans by region
-  targets.yaml     # named target bands (e.g. inflation_pe: 1-3%)
-  events.yaml      # named dated events for marks
-tests/
-  baseline/        # pytest-mpl golden images
+  spec.py          # pydantic v2 models, YAML load + validation (the spec boundary)
+  data.py          # DataResolver; ref grammar; period parsing; long-df contract
+  charttypes.py    # per-series renderers: line / bar / area / stacked (PCHIP smoothing)
+  annotations.py   # hline / vline / span / band overlays
+  marks.py         # per-series value labels + deterministic placement rules
+  timeaxis.py      # adaptive date-axis granularity + tick planning (pure)
+  theme.py         # theme engine: loads themes/*.yaml; es-PE formatters; named sizes
+  render.py        # orchestration: spec -> Figure -> backend; framing; mark finalize
+  batch.py         # batch documents: header cascade -> ChartJobs, fail-soft run
+  deck.py          # rendered PNGs -> .pptx (2 per slide, true physical size)
+  cli.py           # econcharts build <batch.yaml> | render <spec.yaml> -o out.png
+themes/bbva.yaml   # reference house style — SINGLE SOURCE OF TRUTH for all form
+registry/          # (empty — future domain tokens: recessions, targets, events)
+examples/          # hand-written specs + datos.xlsx + gallery.yaml batch
+tests/             # 9 test files; golden images in tests/baseline/ (pytest-mpl)
+ship/              # frozen-exe workstream: econcharts.spec (PyInstaller), build.py, launch.py
 ```
+`bbva source/` holds the original add-in (`*.xlam`) — **never commit it** (gitignored).
 
 ## The spec
-`type` is **required per series** (`line` | `bar` | `area` | `stacked`). There is no chart-level type default — type is always explicit. The type is also the *combination* rule: multiple `bar` series **group side-by-side** (dodged); multiple `stacked` series **stack** (negatives stack downward); `area` series are filled; `line` series are smoothed curves.
-
-- **chart-level**: `title, subtitle, source, period, theme, ylabel, y2label`
-- **series** (list): `name, data, type, axis` (`primary` | `secondary`, default `primary`), `label?`
-- **annotations** (list, optional):
-  - `recessions: <region>` — registry → shaded vertical spans
-  - `span: {from, to, label?}` — ad-hoc shaded period
-  - `band: {y0, y1, label?}` — horizontal shaded band
-  - `target: <named>` — registry → band + center line
-  - `vline: <date>` / `hline: <value>` — separators; scalar or list
-  - `mark: {at, text}` — dated callout
-- **escape hatch**: `style: {...}` — raw rcParam / axis overrides, rarely touched.
-
-Example (contribution-to-growth — the canonical combo: stacked bars + total line):
+The full grammar lives in **GRAMMAR.md** — consult it before writing or validating any spec. Essentials: `type` is required per series and is also the combination rule (bars dodge, stacked stack ±, areas fill+stack, lines overlay on top); `mark` is a **per-series field** (`mark: last`, `mark: {at, marker, value, text}`), *not* an annotation; annotations today are exactly `hline` / `vline` / `span` / `band`. Canonical combo (stacked contributions + total line):
 ```yaml
 title: PBI real — contribuciones al crecimiento
 subtitle: var. % anual, puntos porcentuales
-source: BCRP
-theme: bbva
-period: 2018Q1:2025Q4
+source: BCRP            # metadata only — not drawn (lives beside the chart)
+period: 2018Q1:end
 series:
   - {name: Consumo,     data: "excel:pbi.xlsx#trim!c_consumo",   type: stacked}
   - {name: Inversión,   data: "excel:pbi.xlsx#trim!c_inversion", type: stacked}
   - {name: Sector ext., data: "excel:pbi.xlsx#trim!c_xn",        type: stacked}
-  - {name: PBI,         data: "excel:pbi.xlsx#trim!pbi_yoy",     type: line}
+  - {name: PBI,         data: "excel:pbi.xlsx#trim!pbi_yoy",     type: line, mark: last}
 annotations:
-  - recessions: peru
   - hline: 0
-  - mark: {at: 2020Q2, text: COVID-19}
 ```
-The `stacked` components stack into the net total; the `line` (PBI) overlays it.
 
 ## Data resolution
-Ref grammar, dispatched by prefix:
-- `excel:<file>#<sheet>!<column>` — **v1, build first**
-- `gsheet:<id>#<tab>!<range>` — later
-- `db:<series>?freq=<A|Q|M>` — later; hits tsdb-api at `db.simgol.net`
+Ref grammar dispatched by prefix: `excel:<file>#<sheet>!<column>` (implemented); `gsheet:`/`db:` recognized, not implemented. Inline data: a list (aligns positionally to the `period` window) or a `{period: value}` map. The resolver contract is fixed: **always** a tidy/long DataFrame `[period, series, value]`, normalized wide→long once at the boundary. Workbook paths resolve against `data_root` (env `ECONCHARTS_DATA_ROOT`; the CLI sets it to the spec/batch file's directory). Excel period column defaults to the sheet's first column; freq is inferred (string tokens, bare years, or datetimes via median spacing).
 
-Resolver contract: **always** returns a tidy/long DataFrame `[period, series, value]`. Excel backend: each sheet has a period/date column (default = first column, configurable) plus named series columns; the ref names the series column. Workbook paths resolve against a configured `DATA_ROOT`. Normalize wide→long here, once, at the boundary.
-
-## Time & locale
-- Internal index = pandas `PeriodIndex` with explicit freq (A/Q/M), inferred from data or `period`.
-- `period: 2010Q1:2025Q4` (also `2010M01`, `2010`) parses to a window. Either bound may be a data-driven token instead of a date: `start` = the sample's FIRST period, `end` = its LAST (e.g. `2010Q1:end`, `start:2025Q4`, `start:end`), filled from the data — the min/max across all dated series, ≠ any one series' own first/last point.
-- `period` is the **authoritative axis frame**: the chart spans exactly that window (xlim + ticks), even where a series has no data; series draw only where they have values (lines start/end at their first/last real point). Data outside the window is clipped; with no `period`, the axis falls back to the data's own range. Framing is done at the axis (not by padding data), so `mark: last` still means the series' own last point, not the frame end. `end` forces a two-phase resolve (read dated data → learn the sample max → materialize the window → align inline-list series → clip) in `render._resolve_framed`.
-- es-PE formatting (quarter/month labels, thousands separator) lives in `theme.py` formatters — never in the spec.
-- Centralize every date→axis-coordinate conversion in one place; never mix strings / Timestamps / mpl-dates downstream.
-- **Time-series-first.** Categorical x supported but secondary; scatter is out of v1 scope.
+## Time & framing
+- Internal index = pandas Periods with explicit freq (D/Q/M/Y), one freq per chart.
+- `period` is the **authoritative axis frame**: the chart spans exactly that window (xlim + ticks) even where a series has no data; data outside is clipped; no `period` → the data's own range. Either bound may be the data-driven token `start`/`end` (sample min/max across all dated series — ≠ any one series' own first/last, which is what `mark: last` means). `end` forces the two-phase resolve in `render._resolve_framed`.
+- **Every date→axis-x conversion goes through `render._periods_to_x` and friends** — periods map to their *midpoint*; bars/vlines use period *boundaries* (see `AxisCoords`). Never mix strings / Timestamps / mpl-dates downstream.
+- `timeaxis.plan_ticks` picks the display granularity adaptively (finest that fits the width; thin every-other before coarsening) — daily data over a decade labels in years.
+- es-PE formatting (month abbrevs, `,` decimal / `.` thousands) lives in `theme.py` — never in the spec.
 
 ## Theme
-- A theme = one `themes/<name>.yaml` (the single source of truth): a named color table (`colors`), the series `cycle`, the `annotations` color vocabulary, and matplotlib `rc` params (font, spines, grid, legend, sizes). `theme.py` is the engine that loads it, resolves color NAMES→hex everywhere, and applies the rcParams in memory (no `.mplstyle` on disk). Helper formatters + palette cycle live on the resolved `Theme`.
-- Colors are named once in `colors:` and referenced by name everywhere else — in `cycle`/`annotations`/`rc` AND in chart specs (`color: orange`, resolved against the full table). **Never hard-code color in renderers** — pull from the active theme.
-- `bbva` is the reference theme; primary `#001391` (2025 house palette, extracted from the official `Addin_BBVA_2025.xlam`). Themes are pluggable.
-- Form lives *entirely* here. If a formatting choice shows up in a spec, it belongs in the theme.
-- **Named output sizes** (the add-in's export presets, physical mm): `word_half` 75×60, `word_full` 117×60, `slides_half` 85×70 (default), `slides_full` 140×75. Size is a render-time choice (one spec → many targets), not a spec field — like the output backend.
+- A theme = one `themes/<name>.yaml` (single source of truth): named `colors` table, series `cycle`, `annotations` vocabulary, `date_labels` patterns, matplotlib `rc` params. `theme.py` is the generic engine — it resolves color NAMES→hex everywhere and applies rc in memory (no `.mplstyle` on disk).
+- **Never hard-code a color in renderers** — pull from the active theme. (Known violations to clean up: subtitle/leader colors in `render.py`, contrast pair in `theme.label_contrast_color`.)
+- `bbva` is the reference theme; primary `#001391`, extracted from the official `Addin_BBVA_2025.xlam` (May 2025, "Version 3").
+- **Named output sizes** (the add-in's export presets, physical mm): `word_half` 75×60, `word_full` 117×60, `slides_half` 85×70 (**default — use this when showing examples**), `slides_full` 140×75. Size and backend are render-time choices (one spec → many targets), not spec fields.
 
-## Registry
-Domain tokens are data, not code — YAML under `registry/`:
-- `recessions.yaml`: `{peru: [{from, to, label?}, ...], us: [...]}`
-- `targets.yaml`: `{inflation_pe: {y0: 1, y1: 3, center: 2}}`
-- `events.yaml`: named dated marks
-The resolver expands a token to geometry + style at load time. Adding a recession period = editing YAML, no code change.
+## Marks & label placement
+matplotlib's weak spot is label collision; econcharts handles it **deterministically** (no adjustText — it was dropped):
+- Per-type placement in `marks.py`: line → dot + label on the outer side of the curve; bar → above (below if negative); area → above the curve; stacked → centered in the segment with auto white/navy contrast.
+- Cross-series rules in `draw_line_marks`: at a shared x the lowest goes below, rest above; 3+ series at the last point go right of the endpoint.
+- `render._finalize_marks` post-processes after layout: hides stacked labels that don't fit their segment, offsets line labels perpendicular to the local slope (constant visual gap), spreads cramped right-labels with leader lines, then grows axis limits (capped) so nothing clips.
+- Marks carry `gid = marks.MARK_GID` and `set_in_layout(False)` so constrained layout ignores them.
 
-## Renderer & output backends
-- One `render(spec) -> Figure`; output is a backend flag on the same figure.
-- `png` (Google Slides): `savefig(dpi=300, bbox_inches="tight", transparent=True)`. Fonts rasterize — ensure the font is present at render time.
-- `svg` (LaTeX): set `rcParams["svg.fonttype"]="none"`, vector, font matched in LaTeX. PDF backend available as an alternative.
-- Annotation mapping: `span`→`axvspan`, `band`→`axhspan`, `vline`→`axvline`, `hline`→`axhline`, `mark`→`annotate`.
-- Label collision is matplotlib's real weak spot for automation: use `adjustText` for marks/data labels and tune it per chart type once.
+## Renderer & output
+- One `render(spec, size) -> Figure`; `save(fig, out, backend)` infers the backend from the suffix. **No `bbox_inches="tight"`** — the figure must save at its exact named physical size; constrained layout fits content *within* the fixed figsize instead.
+- `png` (Google Slides): dpi=300, transparent. `svg`/`pdf` are registered but unpolished (svg still needs `svg.fonttype: "none"` for LaTeX text matching).
+- Annotation mapping: `span`→`axvspan`, `band`→`axhspan` (label auto-placed in the widest clear stretch), `vline`→`axvline`, `hline`→`axhline`.
+- Layering: fills behind bars behind lines (`Z_AREA < Z_BAR < Z_LINE`), annotation fills below / vlines above series, labels on top.
+
+## Batch & deck & CLI
+- A batch = orchestration header (`data_root`, `output_dir`, `render` subset) + inheritable defaults (`theme`, `size`, `backend`, `date_label`: header → chart override) + `charts` keyed by `id`. Header validated up front; chart bodies validated lazily so one bad chart can't sink the batch (**fail-soft** — `run_jobs` records per-chart errors and continues). Paths resolve relative to the batch file. Outputs `<id>_<yyyymmdd>.<backend>`.
+- `econcharts build batch.yaml [--only ids] [-o DIR] [--force]` renders all + assembles a PPTX deck (2 charts per slide at true physical size via `deck.py`); asks once before overwriting. `econcharts render spec.yaml -o out.png [--size] [--backend]` is the single-chart shortcut. Non-zero exit if anything failed.
+
+## Ship (frozen exe)
+`ship/econcharts.spec` is the checked-in PyInstaller manifest (bundles `themes/`, pptx templates; excludes GUI toolkits); `ship/build.py` freezes, lays user-facing files (examples, manual.html, run.bat) at the bundle root, and zips to `~/econcharts_ship.zip`. Build from the project `.venv` (clean python.org Python — not Anaconda).
 
 ## Conventions
-- Python ≥3.11, pydantic v2, YAML specs, matplotlib only for rendering.
-- Validation errors surface at the spec boundary naming the offending key — never a raw matplotlib traceback.
+- Python ≥3.11 (dev env: project `.venv`, Python 3.14, mpl 3.11 — install with `pip install -e ".[dev]"`); pydantic v2; matplotlib only for rendering; Agg backend in tests.
+- **Errors surface at the right boundary naming the offending key — never a raw matplotlib/pandas traceback.** Spec problems → `SpecError`; data → `DataError`; theme → `ThemeError`; render → `RenderError`; batch header → `BatchError`.
+- One responsibility per module, per the layout above. `timeaxis` stays pure (no drawing).
+- themes/ and registry/ are data OUTSIDE the package, resolved relative to `econcharts/` — works for editable installs and the frozen exe (`--add-data`); a plain wheel would not see them, and wheels are a non-goal.
 - No browser/interactive output; no AI in the render path.
-- One responsibility per module, per the layout above.
-
-## Build order
-1. `spec.py` + `theme.py` (bbva) + `render.py` for `line` only, `png` backend — render a hand-written spec end to end.
-2. `data.py` Excel resolver + long-df contract.
-3. `charttypes.py`: bar, area, stacking, secondary axis.
-4. `annotations.py` + `registry.py`: recessions, hline/vline, band/target, mark.
-5. `svg`/`pdf` backends + es-PE formatters.
-6. `cli.py`.
-7. Extensions: `fan` type (PyBEAR forecast bands), small multiples / facets, gsheet + db resolvers.
-8. AI authoring layer — separate, optional, NL → validated spec. **Build last.**
-
-**Gate:** the pipeline must produce a chart you would publish, from a hand-written spec, before step 8.
 
 ## Testing
-- `pytest-mpl` golden images per chart type in `tests/baseline/`.
-- Schema tests: valid specs parse; malformed specs raise clear errors at the right key.
+- `pytest` from the project `.venv` (182 tests, ~16s). Golden images per chart type in `tests/baseline/` via `pytest-mpl` (`pytest --mpl`). Schema tests assert malformed specs fail at the right key.
+- `conftest.py` at the repo root sets Agg + points `ECONCHARTS_DATA_ROOT` at `examples/`.
 
 ## Dependencies
-Core: `matplotlib, pandas, numpy, scipy, pydantic>=2, pyyaml, openpyxl, adjustText`.
-Later resolvers: `gspread, google-api-python-client, requests`.
+Core: `matplotlib, pandas, numpy, scipy` (PCHIP smoothing only), `pydantic>=2, pyyaml, openpyxl, python-pptx`. (`adjustText` is listed in pyproject but unused — placement is deterministic; drop it when touching deps.) Later resolvers: `gspread, google-api-python-client, requests`.
 
 ## Non-goals
-- Not a general grammar of graphics (not ggplot / Vega).
-- Not interactive / web.
-- No per-chart styling in specs beyond the `style:` escape hatch.
-- No AI in the render path.
+- Not a general grammar of graphics (not ggplot / Vega). Not interactive / web.
+- No per-chart styling beyond theme-named selections + the `style:` escape hatch.
+- No AI in the render path. No wheel distribution (the ship is a frozen exe).
