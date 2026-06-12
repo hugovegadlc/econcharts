@@ -214,3 +214,33 @@ def test_highlight_at_all_rejected():
         Spec.from_dict(_minimal(series=[
             {"name": "A", "type": "bar", "data": [1, 2], "highlight": "all"}]))
     assert "use `color` instead" in str(e.value)
+
+
+def test_bare_years_coerce_to_tokens_everywhere():
+    """YAML hands bare `2024` over as an int (and `2024-03-15` as a date) — both
+    are unambiguous in a period-token position and must not need quoting."""
+    import yaml
+
+    doc = """
+period: 2024
+series:
+  - {name: A, type: bar, data: {2023: 1.0, 2024: 2.0}, mark: 2024, highlight: 2024}
+annotations:
+  - {vline: [2023, 2024]}
+  - {span: {from: 2023, to: 2024}}
+"""
+    spec = Spec.from_dict(yaml.safe_load(doc))
+    assert spec.period == "2024"
+    assert list(spec.series[0].data) == ["2023", "2024"]
+    assert spec.series[0].mark.at == "2024"
+    assert spec.series[0].highlight.at == "2024"
+    assert spec.annotations[0].vline == ["2023", "2024"]
+    assert spec.annotations[1].span.start == "2023"
+    assert spec.annotations[1].span.to == "2024"
+
+
+def test_bare_iso_date_coerces_to_token():
+    import datetime
+
+    spec = Spec.from_dict(_minimal(period=datetime.date(2024, 3, 15)))
+    assert spec.period == "2024-03-15"

@@ -114,6 +114,10 @@ Either bound may be a **data-driven token**: `start` = the sample's first period
 = its last (min/max across all dated series, ≠ any one series' first/last). E.g.
 `2018Q1:end`, `start:2025Q4`, `start:end`. One frequency per chart.
 
+**Tokens never need quoting.** YAML hands a bare `2024` over as a number and a bare
+`2024-03-15` as a date; both are normalized to their string token at the spec boundary —
+in `period`, `vline`, `span.from/to`, `mark.at`, `highlight.at`, and inline-map data keys.
+
 ---
 
 ## Theme-named selection vocabularies

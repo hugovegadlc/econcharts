@@ -6,6 +6,7 @@ offending key, never as a raw matplotlib/pandas traceback downstream.
 
 from __future__ import annotations
 
+import datetime
 from pathlib import Path
 from typing import Any, Literal, Optional, Union
 
@@ -33,6 +34,30 @@ AnnLine = Literal["solid", "dotted"]
 _ANNOTATION_TYPES = {"hline", "vline", "span", "band"}  # extended in later chunks
 
 
+def _coerce_period_token(v):
+    """Normalize what YAML hands over in a period-token position.
+
+    A bare `2024` arrives as an int and a bare `2024-03-15` as a datetime.date —
+    both unambiguous, so they become the string token the grammar documents
+    instead of failing string validation. Anything else passes through.
+    """
+    if isinstance(v, bool):       # bool subclasses int; never a token
+        return v
+    if isinstance(v, int):
+        return str(v)
+    if isinstance(v, datetime.datetime):
+        return v.date().isoformat()
+    if isinstance(v, datetime.date):
+        return v.isoformat()
+    return v
+
+
+def _coerce_token_or_list(v):
+    if isinstance(v, list):
+        return [_coerce_period_token(t) for t in v]
+    return _coerce_period_token(v)
+
+
 class _LineAnn(BaseModel):
     """Shared style for line annotations."""
 
@@ -53,6 +78,8 @@ class VLine(_LineAnn):
 
     vline: Union[str, list[str]]
 
+    _coerce_vline = field_validator("vline", mode="before")(_coerce_token_or_list)
+
 
 class _FillAnn(BaseModel):
     """Shared style for shaded-region annotations (no border; alpha is theme-set)."""
@@ -66,6 +93,8 @@ class SpanBody(BaseModel):
     start: str = Field(alias="from")  # 'from' is a Python keyword
     to: str
     label: Optional[str] = None
+
+    _coerce_bounds = field_validator("start", "to", mode="before")(_coerce_period_token)
 
 
 class Span(_FillAnn):
@@ -109,6 +138,8 @@ class MarkSpec(BaseModel):
     value: bool = True    # show the numeric value as a text label
     text: Optional[str] = None  # custom text that replaces the value at a single point
 
+    _coerce_at = field_validator("at", mode="before")(_coerce_token_or_list)
+
 
 class HighlightSpec(BaseModel):
     """Recolor chosen bars within a bar series (emphasis: forecast years, the
@@ -121,6 +152,8 @@ class HighlightSpec(BaseModel):
 
     at: Union[str, list[str]]
     color: Optional[str] = None
+
+    _coerce_at = field_validator("at", mode="before")(_coerce_token_or_list)
 
 
 class Series(BaseModel):
@@ -150,8 +183,18 @@ class Series(BaseModel):
     @classmethod
     def _coerce_at_shorthand(cls, v):
         # mark: last / mark: [2020Q2, 2021Q1] -> {at: ...}; same for highlight.
-        if isinstance(v, (str, list)):
+        # Bare tokens (YAML int years / date objects) count as shorthand too.
+        if isinstance(v, (str, list, int, datetime.date)) and not isinstance(v, bool):
             return {"at": v}
+        return v
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def _coerce_map_keys(cls, v):
+        # Inline {period: value} maps: bare-year keys arrive as ints, bare ISO
+        # dates as date objects — normalize them to string tokens.
+        if isinstance(v, dict):
+            return {_coerce_period_token(k): val for k, val in v.items()}
         return v
 
     @model_validator(mode="after")
@@ -210,6 +253,8 @@ class Spec(BaseModel):
     # Selects a theme date-label style by NAME (e.g. `quarter`/`month`, `plain`/
     # `dotted`), applied per granularity where defined; default = the theme's.
     date_label: Optional[str] = None
+
+    _coerce_period = field_validator("period", mode="before")(_coerce_period_token)
 
     series: list[Series] = Field(min_length=1)
     annotations: list[Annotation] = Field(default_factory=list)
