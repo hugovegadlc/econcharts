@@ -63,18 +63,29 @@ def test_default_size_is_slides_half():
 
 @pytest.mark.parametrize("name,mm", SIZES_MM.items())
 def test_figsize_matches_mm(name, mm):
-    from econcharts.theme import Theme
-
-    w_in, h_in = Theme.figsize(name)
+    theme = load_theme("bbva")
+    w_in, h_in = theme.figsize(name)
     assert w_in == pytest.approx(mm[0] / 25.4)
     assert h_in == pytest.approx(mm[1] / 25.4)
 
 
 def test_unknown_size_errors():
-    from econcharts.theme import Theme
-
     with pytest.raises(ThemeError):
-        Theme.figsize("billboard")
+        load_theme("bbva").figsize("billboard")
+
+
+def test_theme_sizes_override_globals():
+    theme = load_theme("macro")
+    w_in, h_in = theme.figsize("slides_full")
+    assert w_in == pytest.approx(200 / 25.4)
+    assert h_in == pytest.approx(150 / 25.4)
+
+
+def test_theme_sizes_keep_unoverridden_globals():
+    theme = load_theme("macro")
+    w_in, h_in = theme.figsize("word_half")
+    assert w_in == pytest.approx(75 / 25.4)
+    assert h_in == pytest.approx(60 / 25.4)
 
 
 def test_quarter_label_is_qTyy():

@@ -85,8 +85,8 @@ def _build(args) -> int:
             print(f"  [FAIL] {r.id}: {r.error.splitlines()[0]}", file=sys.stderr)
 
     # Assemble the successful PNGs into a deck named after the batch (2 per slide,
-    # each placed at its true export size). Pair each result with its job's size.
-    deck_items = [(r.output_path, j.size) for r, j in zip(results, jobs)
+    # each placed at its true export size). Use the physical mm from the render.
+    deck_items = [(r.output_path, r.size_mm) for r, j in zip(results, jobs)
                   if r.ok and r.output_path.suffix.lower() == ".png"]
     if deck_items:
         from econcharts.deck import build_deck

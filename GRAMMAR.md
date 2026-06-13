@@ -140,7 +140,10 @@ What names a spec may select (the theme owns the values + the default):
 
 ## Render-time choices (NOT spec fields)
 One spec → many targets, chosen at render:
-- **size** (physical mm): `word_half` `word_full` `slides_half` (default) `slides_full`.
+- **size** (physical mm, global defaults): `word_half` 75×60 · `word_full` 117×60 ·
+  `slides_half` 85×70 (default) · `slides_full` 140×75. A theme may override these or
+  add new names in its own `sizes:` block (e.g. `macro` maps `slides_full` to 200×150 mm
+  to match the R export target).
 - **backend**: `png` (Slides) · `svg`/`pdf` (LaTeX) *(svg/pdf pending)*.
 
 ## Batch document (orchestration; layer above a chart — see roadmap C)

@@ -38,13 +38,15 @@ def test_render_returns_figure(example_spec):
 
 @pytest.mark.parametrize("size", list(SIZES_MM))
 def test_render_applies_named_size(example_spec, size):
+    from econcharts.theme import load_theme
     fig = render(example_spec, size=size)
-    assert tuple(fig.get_size_inches()) == pytest.approx(Theme.figsize(size))
+    assert tuple(fig.get_size_inches()) == pytest.approx(load_theme("bbva").figsize(size))
 
 
 def test_default_size_is_slides_half(example_spec):
+    from econcharts.theme import load_theme
     fig = render(example_spec)
-    assert tuple(fig.get_size_inches()) == pytest.approx(Theme.figsize("slides_half"))
+    assert tuple(fig.get_size_inches()) == pytest.approx(load_theme("bbva").figsize("slides_half"))
 
 
 def test_no_title_lets_axes_fill_the_space():

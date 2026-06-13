@@ -36,6 +36,15 @@ cycle: [blue, lightblue, green, orange, yellow, cyan, purple, grey, red, teal, g
 #     when a spec writes `highlight: last` without picking a color. ------------
 highlight: lightblue
 
+# --- named export sizes (physical mm): BBVA add-in export presets.
+#     These match the global defaults but are declared here as documentation
+#     of the canonical BBVA target sizes. ----------------------------------------
+sizes:
+  word_half:   [ 75,  60]
+  word_full:   [117,  60]
+  slides_half: [ 85,  70]   # default
+  slides_full: [140,  75]
+
 # --- legend placement: below | above (figure-level rows) or an inside corner
 #     (top-left/top-right/bottom-left/bottom-right). A chart may override. -----
 legend:

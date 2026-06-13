@@ -16,8 +16,6 @@ from typing import Union
 from pptx import Presentation
 from pptx.util import Inches
 
-from econcharts.theme import SIZES_MM
-
 # 16:9 widescreen slide; two side-by-side boxes with margins + a centre gap.
 _SLIDE_W = Inches(13.333)
 _SLIDE_H = Inches(7.5)
@@ -28,14 +26,14 @@ _PER_SLIDE = 2
 _MM_PER_IN = 25.4
 
 
-def _emu_size(size_name: str) -> tuple[int, int]:
-    """A named export size -> (width, height) in EMU (its true physical mm)."""
-    w_mm, h_mm = SIZES_MM.get(size_name, SIZES_MM["slides_half"])
+def _emu_size(size_mm: tuple) -> tuple[int, int]:
+    """(w_mm, h_mm) -> (width, height) in EMU."""
+    w_mm, h_mm = size_mm
     return Inches(w_mm / _MM_PER_IN), Inches(h_mm / _MM_PER_IN)
 
 
-def build_deck(items: list[tuple[Path, str]], out_path: Union[str, Path]) -> Path:
-    """Build a .pptx, two charts per slide. `items` is (image_path, size_name) in
+def build_deck(items: list[tuple[Path, tuple]], out_path: Union[str, Path]) -> Path:
+    """Build a .pptx, two charts per slide. `items` is (image_path, (w_mm, h_mm)) in
     order; each chart is placed at its real physical size. Returns the saved path."""
     prs = Presentation()
     prs.slide_width = _SLIDE_W

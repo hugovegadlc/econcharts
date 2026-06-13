@@ -52,6 +52,7 @@ class JobResult:
     ok: bool
     output_path: Path
     error: Optional[str] = None
+    size_mm: Optional[tuple] = None   # (w_mm, h_mm) of the rendered figure
 
 
 class Batch(BaseModel):
@@ -152,9 +153,11 @@ def run_jobs(jobs: list[ChartJob], data_root: Union[str, Path]) -> list[JobResul
         try:
             spec = Spec.from_dict(job.body, source_name=job.id)
             fig = render(spec, size=job.size, data_root=data_root)
+            w_in, h_in = fig.get_size_inches()
+            size_mm = (w_in * 25.4, h_in * 25.4)
             save(fig, job.output_path, backend=job.backend)
             plt.close(fig)
-            results.append(JobResult(job.id, True, job.output_path))
+            results.append(JobResult(job.id, True, job.output_path, size_mm=size_mm))
         except Exception as e:  # noqa: BLE001 — fail-soft is the whole point here
             results.append(JobResult(job.id, False, job.output_path, str(e)))
     return results

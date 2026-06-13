@@ -371,13 +371,16 @@ legend: above           # row above the chart area</code></pre>
 
   <h3>Export size</h3>
   <p>A render-time choice — one spec can target several — set on the batch header or a chart, not
-  inside the chart body. Physical millimetres:</p>
+  inside the chart body. Global defaults (physical millimetres):</p>
   <table class="keys">
     <tr><td><code>slides_half</code></td><td>85 × 70 mm — the default.</td></tr>
     <tr><td><code>slides_full</code></td><td>140 × 75 mm</td></tr>
     <tr><td><code>word_half</code></td><td>75 × 60 mm</td></tr>
     <tr><td><code>word_full</code></td><td>117 × 60 mm</td></tr>
   </table>
+  <p>A theme may override these or add new names in its own <code>sizes:</code> block.
+  For example, the <code>macro</code> theme maps <code>slides_full</code> to 200 × 150 mm
+  (matching the R export target) and <code>slides_half</code> to 100 × 75 mm.</p>
 
   <div class="note"><strong>The cascade.</strong> A named choice resolves most-general to
   most-specific: <em>theme default → batch header → individual chart</em>. So a deck can default to

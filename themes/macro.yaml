@@ -29,6 +29,13 @@ cycle: [blue, orange, green, lightblue, lightgreen, tan]
 #     when a spec writes `highlight: last` without picking a color. ------------
 highlight: orange
 
+# --- named export sizes (physical mm): override the global BBVA presets.
+#     The R script (peru_macro_historical_v2.R) saves at 8×6 in = ~203×152 mm.
+#     slides_full matches that; slides_half is a proportional 100×75. ----------
+sizes:
+  slides_half:  [100,  75]
+  slides_full:  [200, 150]
+
 # --- legend placement: the R theme puts legends INSIDE the panel, top-left
 #     (theme_hugo legend_position = c(0.15, 0.88)). A chart may override. ------
 legend:

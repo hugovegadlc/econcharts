@@ -70,6 +70,7 @@ class Theme:
     date_labels: dict = field(default_factory=dict)   # granularity -> {options, default}
     highlight: Optional[str] = None                   # default bar-highlight hex
     legend_position: str = "below"                    # one of LEGEND_POSITIONS
+    sizes_mm: dict = field(default_factory=lambda: dict(SIZES_MM))  # name -> (w, h) mm
 
     def style(self):
         """Context manager applying this theme's rcParams (built in memory)."""
@@ -146,12 +147,16 @@ class Theme:
             fields["d"], fields["mmm"] = str(period.day), _MONTHS_ES[period.month - 1]
         return pattern.format(**fields)
 
-    @staticmethod
-    def figsize(size: str) -> tuple[float, float]:
-        """Resolve a named export size to a matplotlib figsize in inches."""
-        if size not in SIZES_MM:
-            raise ThemeError(f"unknown size {size!r}; choose from {sorted(SIZES_MM)}")
-        w_mm, h_mm = SIZES_MM[size]
+    def figsize(self, size: str) -> tuple[float, float]:
+        """Resolve a named export size to a matplotlib figsize in inches.
+
+        Theme-level `sizes:` entries take precedence over the global defaults,
+        so different themes can ship different physical dimensions for the same
+        size name (e.g. macro's slides_full is 200×150 mm, not 140×75 mm).
+        """
+        if size not in self.sizes_mm:
+            raise ThemeError(f"unknown size {size!r}; choose from {sorted(self.sizes_mm)}")
+        w_mm, h_mm = self.sizes_mm[size]
         return (w_mm / _MM_PER_INCH, h_mm / _MM_PER_INCH)
 
 
@@ -189,6 +194,9 @@ def load_theme(name: str) -> Theme:
             f"choose from: {', '.join(LEGEND_POSITIONS)}"
         )
 
+    raw_sizes = raw.get("sizes", {})
+    sizes_mm = {**SIZES_MM, **{k: tuple(v) for k, v in raw_sizes.items()}}
+
     ann = raw.get("annotations", {})
     return Theme(
         name=name,
@@ -204,6 +212,7 @@ def load_theme(name: str) -> Theme:
         date_labels=raw.get("date_labels", {}),
         highlight=colors[highlight_name] if highlight_name else None,
         legend_position=legend_position,
+        sizes_mm=sizes_mm,
     )
 
 
