@@ -29,6 +29,12 @@ _MM_PER_INCH = 25.4
 # The default named size; the actual mm for each name live in the theme YAML.
 DEFAULT_SIZE = "slides_half"
 
+# Fixed annotation vocabularies — every theme must cover these roles.
+_ANN_ROLES = ("grey", "orange", "blue")
+_ANN_WEIGHTS = ("thin", "thick")
+_ANN_LINE_STYLES = ("solid", "dotted")
+_DATE_GRAN = ("D", "M", "Q", "Y")
+
 # Where a theme puts the chart legend (a chart spec may override by name).
 # `below`/`above` are figure-level horizontal rows outside the axes (constrained
 # layout reserves room); the four corners sit INSIDE the axes (ggplot-style),
@@ -153,6 +159,68 @@ class Theme:
         return (w_mm / _MM_PER_INCH, h_mm / _MM_PER_INCH)
 
 
+def _validate_theme(name: str, raw: dict, sizes_mm: dict) -> None:
+    """Raise ThemeError if any required section is absent or structurally incomplete.
+
+    Required: sizes (≥1 entry), annotations (line/fill/label with all three color
+    roles; weights with thin/thick; lines with solid/dotted), date_labels (all four
+    granularities D/M/Q/Y, each with a non-empty options map and a valid default).
+    colors and cycle are validated earlier in load_theme.
+    """
+    if not sizes_mm:
+        raise ThemeError(
+            f"theme {name!r}: `sizes` is required — declare at least one named size"
+        )
+
+    ann = raw.get("annotations")
+    if not isinstance(ann, dict):
+        raise ThemeError(f"theme {name!r}: `annotations` section is required")
+    for sub in ("line", "fill", "label"):
+        m = ann.get(sub)
+        if not isinstance(m, dict):
+            raise ThemeError(f"theme {name!r}: `annotations.{sub}` is required")
+        missing = [r for r in _ANN_ROLES if r not in m]
+        if missing:
+            raise ThemeError(
+                f"theme {name!r}: `annotations.{sub}` must define all three roles "
+                f"({', '.join(_ANN_ROLES)}); missing: {', '.join(missing)}"
+            )
+    for sub, vocab in (("weights", _ANN_WEIGHTS), ("lines", _ANN_LINE_STYLES)):
+        m = ann.get(sub)
+        if not isinstance(m, dict):
+            raise ThemeError(f"theme {name!r}: `annotations.{sub}` is required")
+        missing = [k for k in vocab if k not in m]
+        if missing:
+            raise ThemeError(
+                f"theme {name!r}: `annotations.{sub}` must define: {', '.join(missing)}"
+            )
+
+    dl = raw.get("date_labels")
+    if not isinstance(dl, dict):
+        raise ThemeError(f"theme {name!r}: `date_labels` section is required")
+    for gran in _DATE_GRAN:
+        if gran not in dl:
+            raise ThemeError(
+                f"theme {name!r}: `date_labels.{gran}` is required "
+                f"(needed granularities: {', '.join(_DATE_GRAN)})"
+            )
+        conf = dl[gran]
+        if not isinstance(conf.get("options"), dict) or not conf["options"]:
+            raise ThemeError(
+                f"theme {name!r}: `date_labels.{gran}.options` must be a non-empty mapping"
+            )
+        dflt = conf.get("default")
+        if dflt is None:
+            raise ThemeError(
+                f"theme {name!r}: `date_labels.{gran}.default` is required"
+            )
+        if dflt not in conf["options"]:
+            raise ThemeError(
+                f"theme {name!r}: `date_labels.{gran}.default` {dflt!r} "
+                f"not in options: {list(conf['options'])}"
+            )
+
+
 def load_theme(name: str) -> Theme:
     """Load and resolve a theme from `themes/<name>.yaml`."""
     path = _THEMES_DIR / f"{name}.yaml"
@@ -166,10 +234,14 @@ def load_theme(name: str) -> Theme:
     def resolve(v):  # a value that names a color -> its hex; anything else untouched
         return colors.get(v, v) if isinstance(v, str) else v
 
+    if "cycle" not in raw:
+        raise ThemeError(f"theme {name!r}: `cycle` is required")
     try:
         palette = [colors[n] for n in raw["cycle"]]
     except KeyError as e:
         raise ThemeError(f"theme {name!r}: cycle names an undefined color {e}") from None
+    if not palette:
+        raise ThemeError(f"theme {name!r}: `cycle` must list at least one color name")
 
     rc = {k: resolve(v) for k, v in raw.get("rc", {}).items()}
     rc["axes.prop_cycle"] = cycler("color", palette)
@@ -188,6 +260,7 @@ def load_theme(name: str) -> Theme:
         )
 
     sizes_mm = {k: tuple(v) for k, v in raw.get("sizes", {}).items()}
+    _validate_theme(name, raw, sizes_mm)
 
     ann = raw.get("annotations", {})
     return Theme(

@@ -136,3 +136,109 @@ def test_unknown_legend_position_errors(tmp_path, monkeypatch):
     monkeypatch.setattr(theme_mod, "_THEMES_DIR", tmp_path)
     with pytest.raises(ThemeError, match="unknown legend position 'floating'"):
         load_theme("bad")
+
+
+# ---------------------------------------------------------------------------
+# Structural validation (_validate_theme) — tested directly, no file I/O
+# ---------------------------------------------------------------------------
+
+from econcharts.theme import _validate_theme  # noqa: E402  (after class defs)
+
+_ANN = {
+    "line":    {"grey": "grey", "orange": "orange", "blue": "blue"},
+    "fill":    {"grey": "grey", "orange": "orange", "blue": "blue"},
+    "label":   {"grey": "grey", "orange": "orange", "blue": "blue"},
+    "weights": {"thin": 1.0, "thick": 2.0},
+    "lines":   {"solid": "-", "dotted": ":"},
+}
+_DL = {
+    "D": {"options": {"plain": "{d}-{mmm}"},  "default": "plain"},
+    "M": {"options": {"plain": "{mmm}-{yy}"}, "default": "plain"},
+    "Q": {"options": {"month": "{mmm}-{yy}"}, "default": "month"},
+    "Y": {"options": {"full": "{yyyy}"},       "default": "full"},
+}
+_MINIMAL_RAW = {"annotations": _ANN, "date_labels": _DL}
+_MINIMAL_SIZES = {"slides_half": (85, 70)}
+
+
+def test_validate_passes_for_complete_theme():
+    _validate_theme("t", _MINIMAL_RAW, _MINIMAL_SIZES)
+
+
+def test_validate_empty_sizes_errors():
+    with pytest.raises(ThemeError, match="sizes"):
+        _validate_theme("t", _MINIMAL_RAW, {})
+
+
+def test_validate_missing_annotations_errors():
+    raw = {k: v for k, v in _MINIMAL_RAW.items() if k != "annotations"}
+    with pytest.raises(ThemeError, match="annotations"):
+        _validate_theme("t", raw, _MINIMAL_SIZES)
+
+
+@pytest.mark.parametrize("sub", ["line", "fill", "label", "weights", "lines"])
+def test_validate_missing_annotation_sub_errors(sub):
+    ann = {k: v for k, v in _ANN.items() if k != sub}
+    with pytest.raises(ThemeError, match=sub):
+        _validate_theme("t", {"annotations": ann, "date_labels": _DL}, _MINIMAL_SIZES)
+
+
+def test_validate_annotation_missing_role_errors():
+    ann = {**_ANN, "line": {"grey": "grey", "orange": "orange"}}   # blue missing
+    with pytest.raises(ThemeError, match="blue"):
+        _validate_theme("t", {"annotations": ann, "date_labels": _DL}, _MINIMAL_SIZES)
+
+
+def test_validate_annotation_missing_weight_errors():
+    ann = {**_ANN, "weights": {"thin": 1.0}}                       # thick missing
+    with pytest.raises(ThemeError, match="thick"):
+        _validate_theme("t", {"annotations": ann, "date_labels": _DL}, _MINIMAL_SIZES)
+
+
+def test_validate_missing_date_labels_errors():
+    raw = {k: v for k, v in _MINIMAL_RAW.items() if k != "date_labels"}
+    with pytest.raises(ThemeError, match="date_labels"):
+        _validate_theme("t", raw, _MINIMAL_SIZES)
+
+
+@pytest.mark.parametrize("gran", ["D", "M", "Q", "Y"])
+def test_validate_missing_granularity_errors(gran):
+    dl = {k: v for k, v in _DL.items() if k != gran}
+    with pytest.raises(ThemeError, match=gran):
+        _validate_theme("t", {"annotations": _ANN, "date_labels": dl}, _MINIMAL_SIZES)
+
+
+def test_validate_bad_date_label_default_errors():
+    dl = {**_DL, "Q": {"options": {"month": "{mmm}-{yy}"}, "default": "typo"}}
+    with pytest.raises(ThemeError, match="default"):
+        _validate_theme("t", {"annotations": _ANN, "date_labels": dl}, _MINIMAL_SIZES)
+
+
+def test_validate_empty_date_label_options_errors():
+    dl = {**_DL, "Q": {"options": {}, "default": "month"}}
+    with pytest.raises(ThemeError, match="options"):
+        _validate_theme("t", {"annotations": _ANN, "date_labels": dl}, _MINIMAL_SIZES)
+
+
+# cycle validation (tested via load_theme with tmp yaml files)
+
+def test_missing_cycle_errors(tmp_path, monkeypatch):
+    import econcharts.theme as theme_mod
+    (tmp_path / "t.yaml").write_text(
+        "colors: {blue: '#0000FF'}\nsizes: {slides_half: [85, 70]}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(theme_mod, "_THEMES_DIR", tmp_path)
+    with pytest.raises(ThemeError, match="cycle"):
+        load_theme("t")
+
+
+def test_empty_cycle_errors(tmp_path, monkeypatch):
+    import econcharts.theme as theme_mod
+    (tmp_path / "t.yaml").write_text(
+        "colors: {blue: '#0000FF'}\ncycle: []\nsizes: {slides_half: [85, 70]}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(theme_mod, "_THEMES_DIR", tmp_path)
+    with pytest.raises(ThemeError, match="cycle"):
+        load_theme("t")
