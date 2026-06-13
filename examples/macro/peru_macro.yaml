@@ -1,0 +1,312 @@
+# =============================================================================
+# Peru Macro Aggregates — econcharts batch
+# Translated from: macro source/peru_macro_historical_v2.R
+# =============================================================================
+#
+# SETUP
+#   Copy your workbook to this folder as  macro.xlsx  (or edit data_root below).
+#   The workbook should contain sheets: anual, mensual, bdp, fiscal.
+#   The first column of each sheet must hold the period (year or month).
+#
+# COMPUTED COLUMNS
+#   econcharts does not transform data in-spec. For charts that require
+#   derived series, add the pre-computed columns to the relevant sheet.
+#   Each chart section below lists the columns it needs with a TODO comment.
+#
+# DIFFERENCES FROM THE R SCRIPT
+#   - Graph 10 (exchange rate) was a 2-panel facet; here it is two charts
+#     (tcn_nivel + tcn_dep) that the deck places side by side automatically.
+#   - Graph 6 (inflation clipped) is replaced by infla_reciente which starts
+#     in 1993 — econcharts has no y-axis clip option in the current grammar.
+#   - Graphs A (PBI per capita) and B (output gap) are commented out;
+#     they require external data / HP-filter computation not in the workbook.
+# =============================================================================
+
+data_root:  .           # workbook path is relative to this file
+output_dir: _figuras    # PNGs and deck land here
+theme:      macro
+size:       slides_full
+backend:    pdf
+
+charts:
+
+  # ---------------------------------------------------------------------------
+  # 1 · Aggregate levels  (Miles de millones de soles de 2007)
+  # TODO anual sheet: pbi_bn = pbi/1000,  cons_priv_bn = cons_priv/1000,
+  #                   inv_priv_bn = inv_bruta_fija_priv/1000
+  # ---------------------------------------------------------------------------
+  - id: lev
+    title: "Agregados Macroeconómicos del Perú"
+    subtitle: "Miles de millones de soles de 2007"
+    source: BCRP
+    period: 1950:2025
+    series:
+      - {name: "Producto Bruto Interno",       type: line, color: blue,      data: "excel:macro.xlsx#anual!pbi_bn"}
+      - {name: "Consumo Privado",              type: line, color: orange,    data: "excel:macro.xlsx#anual!cons_priv_bn"}
+      - {name: "Inversión Bruta Fija Privada", type: line, color: green,     data: "excel:macro.xlsx#anual!inv_priv_bn"}
+
+  # ---------------------------------------------------------------------------
+  # 2 · Logarithms
+  # TODO anual sheet: log_pbi = ln(pbi),  log_cons_priv = ln(cons_priv),
+  #                   log_inv_priv = ln(inv_bruta_fija_priv)
+  # ---------------------------------------------------------------------------
+  - id: log
+    title: "Agregados Macroeconómicos del Perú"
+    subtitle: "Logaritmos"
+    source: BCRP
+    period: 1950:2025
+    series:
+      - {name: "Producto Bruto Interno",       type: line, color: blue,      data: "excel:macro.xlsx#anual!log_pbi"}
+      - {name: "Consumo Privado",              type: line, color: orange,    data: "excel:macro.xlsx#anual!log_cons_priv"}
+      - {name: "Inversión Bruta Fija Privada", type: line, color: green,     data: "excel:macro.xlsx#anual!log_inv_priv"}
+
+  # ---------------------------------------------------------------------------
+  # 3 · Annual growth rates
+  # TODO anual sheet: pbi_g        = 100*(pbi/lag(pbi) - 1)
+  #                   cons_priv_g  = 100*(cons_priv/lag(cons_priv) - 1)
+  #                   inv_priv_g   = 100*(inv_bruta_fija_priv/lag(inv_bruta_fija_priv) - 1)
+  # ---------------------------------------------------------------------------
+  - id: growth
+    title: "Agregados Macroeconómicos del Perú"
+    subtitle: "Tasa de crecimiento"
+    source: BCRP
+    period: 1951:2025
+    series:
+      - {name: "Producto Bruto Interno",       type: line, color: blue,      data: "excel:macro.xlsx#anual!pbi_g"}
+      - {name: "Consumo Privado",              type: line, color: orange,    data: "excel:macro.xlsx#anual!cons_priv_g"}
+      - {name: "Inversión Bruta Fija Privada", type: line, color: green,     data: "excel:macro.xlsx#anual!inv_priv_g"}
+    annotations:
+      - hline: 0
+
+  # ---------------------------------------------------------------------------
+  # 4 · Demand components as % of GDP
+  # TODO anual sheet:
+  #   cons_priv_pct  = 100 * cons_priv / pbi
+  #   inv_priv_pct   = 100 * inv_bruta_fija_priv / pbi
+  #   gasto_pub_pct  = 100 * (cons_pub + inv_bruta_fija_pub) / pbi
+  #   balanza_c_pct  = 100 * (export - import) / pbi
+  # ---------------------------------------------------------------------------
+  - id: gdp_perc
+    title: "Agregados Macroeconómicos del Perú"
+    subtitle: "Porcentaje del PBI"
+    source: BCRP
+    period: 1950:2025
+    series:
+      - {name: "Consumo Privado",              type: line, color: blue,      data: "excel:macro.xlsx#anual!cons_priv_pct"}
+      - {name: "Inversión Bruta Fija Privada", type: line, color: orange,    data: "excel:macro.xlsx#anual!inv_priv_pct"}
+      - {name: "Sector Público",               type: line, color: green,     data: "excel:macro.xlsx#anual!gasto_pub_pct"}
+      - {name: "Balanza Comercial",            type: line, color: lightblue, data: "excel:macro.xlsx#anual!balanza_c_pct"}
+
+  # ---------------------------------------------------------------------------
+  # 5 · Inflation — full history (includes hyperinflation peak ~7000%)
+  # Column inflacion used as-is from the anual sheet.
+  # ---------------------------------------------------------------------------
+  - id: infla_full
+    title: "Inflación"
+    subtitle: "Porcentaje"
+    source: BCRP
+    period: start:2025
+    series:
+      - {name: Inflación, type: line, color: blue, data: "excel:macro.xlsx#anual!inflacion"}
+
+  # ---------------------------------------------------------------------------
+  # 6 · Inflation — post-hyperinflation view
+  # In R this was the same data with y-axis clipped to [-20, 50].
+  # Starting from 1993 achieves the same visual intent without a ylim override.
+  # ---------------------------------------------------------------------------
+  - id: infla_reciente
+    title: "Inflación"
+    subtitle: "Porcentaje"
+    source: BCRP
+    period: 1993:2025
+    series:
+      - {name: Inflación, type: line, color: blue, data: "excel:macro.xlsx#anual!inflacion"}
+    annotations:
+      - hline: 0
+
+  # ---------------------------------------------------------------------------
+  # 7 · GDP growth vs. terms of trade
+  # TODO anual sheet: pbi_g = PBI growth rate (see chart 3)
+  #                   ti_g  = 100*(ti/lag(ti) - 1)
+  # ---------------------------------------------------------------------------
+  - id: ti
+    title: "Producto Bruto Interno y Términos de Intercambio"
+    subtitle: "Tasa de crecimiento"
+    source: BCRP
+    period: 1951:2025
+    series:
+      - {name: "Producto Bruto Interno",    type: line, color: blue,   line: solid,  data: "excel:macro.xlsx#anual!pbi_g"}
+      - {name: "Términos de Intercambio",   type: line, color: orange, line: dashed, data: "excel:macro.xlsx#anual!ti_g"}
+    annotations:
+      - hline: 0
+
+  # ---------------------------------------------------------------------------
+  # 8 · Fiscal deficit (% of GDP)
+  # Column def_fiscal used as-is from the anual sheet (BCRP publishes it as % PBI).
+  # ---------------------------------------------------------------------------
+  - id: deficit
+    title: "Déficit Fiscal"
+    subtitle: "Porcentaje del PBI"
+    source: BCRP
+    period: 1970:2025
+    series:
+      - {name: "Déficit fiscal", type: line, color: blue, data: "excel:macro.xlsx#anual!def_fiscal"}
+    annotations:
+      - hline: 0
+
+  # ---------------------------------------------------------------------------
+  # 9 · GDP growth with recession-year labels
+  # TODO anual sheet: pbi_g = PBI growth rate (see chart 3)
+  # The mark.at list matches the recession_years vector in the R script.
+  # ---------------------------------------------------------------------------
+  - id: gdp
+    title: "Producto Bruto Interno"
+    subtitle: "Tasa de crecimiento"
+    source: BCRP
+    period: 1951:2025
+    series:
+      - name: "PBI"
+        type: line
+        color: blue
+        data: "excel:macro.xlsx#anual!pbi_g"
+        mark:
+          at: [1958, 1968, 1978, 1983, 1988, 1989, 1998, 2001, 2009, 2020, 2023]
+    annotations:
+      - {hline: 0, color: orange, line: dotted}
+
+  # ---------------------------------------------------------------------------
+  # 10a · Nominal exchange rate — level  (soles per dollar, monthly)
+  # R: panel 1 of a 2-panel facet_wrap; split here because econcharts has no
+  # facets yet. The deck will place tcn_nivel and tcn_dep side by side.
+  # Column tcn used as-is from the mensual sheet.
+  # ---------------------------------------------------------------------------
+  - id: tcn_nivel
+    title: "Tipo de Cambio Nominal"
+    subtitle: "Soles por dólar"
+    source: BCRP
+    period: 1993M12:2026M02
+    series:
+      - {name: "Tipo de cambio", type: line, color: blue, data: "excel:macro.xlsx#mensual!tcn"}
+
+  # ---------------------------------------------------------------------------
+  # 10b · Nominal exchange rate — monthly depreciation (%)
+  # TODO mensual sheet: tcn_var = 100*(tcn/lag(tcn) - 1)
+  # ---------------------------------------------------------------------------
+  - id: tcn_dep
+    title: "Tipo de Cambio Nominal"
+    subtitle: "Depreciación mensual, %"
+    source: BCRP
+    period: 1993M12:2026M02
+    series:
+      - {name: "Depreciación mensual", type: line, color: orange, data: "excel:macro.xlsx#mensual!tcn_var"}
+    annotations:
+      - hline: 0
+
+  # ---------------------------------------------------------------------------
+  # 11 · Current account balance of payments  (stacked bars, % of GDP)
+  # Data from the bdp sheet.
+  # TODO bdp sheet: divide each component by nominal PBI and multiply by 100.
+  #   bal_com_pct  = 100 * bal_com  / pbi_nominal
+  #   bal_ser_pct  = 100 * bal_ser  / pbi_nominal
+  #   ing_prim_pct = 100 * ing_prim / pbi_nominal
+  #   ing_sec_pct  = 100 * ing_sec  / pbi_nominal
+  # Series order matches the R stacking (bottom to top: commercial, services,
+  # factor income, transfers).
+  # ---------------------------------------------------------------------------
+  - id: bop
+    title: "Cuenta Corriente de la Balanza de Pagos"
+    subtitle: "Porcentaje del PBI"
+    source: BCRP
+    period: 1950:2025
+    series:
+      - {name: "Balanza comercial",   type: stacked, color: blue,      data: "excel:macro.xlsx#bdp!bal_com_pct"}
+      - {name: "Servicios",           type: stacked, color: orange,    data: "excel:macro.xlsx#bdp!bal_ser_pct"}
+      - {name: "Renta de factores",   type: stacked, color: green,     data: "excel:macro.xlsx#bdp!ing_prim_pct"}
+      - {name: "Transferencias",      type: stacked, color: lightblue, data: "excel:macro.xlsx#bdp!ing_sec_pct"}
+    annotations:
+      - hline: 0
+
+  # ---------------------------------------------------------------------------
+  # 12 · Fiscal deficit decomposition  (stacked bars, % of GDP)
+  # Data from the fiscal sheet (R reads it as raw_def).
+  # Assumes the fiscal sheet already stores values as % of GDP as the BCRP
+  # publishes them.  Expenditure items are positive (outflows); ingreso is also
+  # positive (inflows). The net of the stack represents the fiscal balance.
+  # Series order matches R: interest, capex, current spending, other, revenue.
+  # ---------------------------------------------------------------------------
+  - id: def_comp
+    title: "Déficit Fiscal"
+    subtitle: "Porcentaje del PBI"
+    source: BCRP
+    period: 1970:2025
+    series:
+      - {name: "Ingresos",          type: stacked, color: blue,      data: "excel:macro.xlsx#fiscal!ingreso"}
+      - {name: "Gasto corriente",   type: stacked, color: orange,    data: "excel:macro.xlsx#fiscal!gasto_corr"}
+      - {name: "Gasto de capital",  type: stacked, color: green,     data: "excel:macro.xlsx#fiscal!gasto_cap"}
+      - {name: "Intereses",         type: stacked, color: lightblue, data: "excel:macro.xlsx#fiscal!inter"}
+      - {name: "Otros",             type: stacked, color: tan,       data: "excel:macro.xlsx#fiscal!otros"}
+    annotations:
+      - hline: 0
+
+  # ---------------------------------------------------------------------------
+  # C · Net international reserves
+  # TODO anual sheet: add column rin (USD billion)
+  #   Source: BCRP estadísticas anuales → reservas internacionales
+  # ---------------------------------------------------------------------------
+  - id: rin
+    title: "Reservas Internacionales Netas"
+    subtitle: "Miles de millones de USD"
+    source: BCRP
+    period: 1993:2025
+    series:
+      - {name: "RIN", type: area, color: blue, data: "excel:macro.xlsx#anual!rin"}
+
+  # ---------------------------------------------------------------------------
+  # D · Public debt (% of GDP)
+  # TODO fiscal sheet (or anual): add column deuda_pub (% PBI)
+  #   Source: BCRP estadísticas anuales → sector público
+  # ---------------------------------------------------------------------------
+  - id: deuda
+    title: "Deuda Pública"
+    subtitle: "Porcentaje del PBI"
+    source: BCRP
+    period: 1970:2025
+    series:
+      - {name: "Deuda pública", type: line, color: blue, data: "excel:macro.xlsx#fiscal!deuda_pub"}
+    annotations:
+      - hline: 0
+
+  # ---------------------------------------------------------------------------
+  # A · GDP per capita: Peru vs. region  [PENDIENTE — datos externos]
+  # Required: columns peru, chile, colombia, mexico in a "pbi_pc" sheet
+  #   (log of constant-USD GDP per capita).
+  # Options:
+  #   (1) WDI R package: WDI(country=c("PE","CL","CO","MX"),
+  #                          indicator="NY.GDP.PCAP.KD", start=1960, end=2024)
+  #   (2) Maddison Project: https://www.rug.nl/ggdc/historicaldevelopment/maddison/
+  # ---------------------------------------------------------------------------
+  # - id: pbi_pc
+  #   title: "PBI per Cápita"
+  #   subtitle: "Logaritmos (USD constantes)"
+  #   source: "Banco Mundial / Proyecto Maddison"
+  #   period: 1960:2024
+  #   series:
+  #     - {name: "Perú",     type: line, color: blue,      data: "excel:macro.xlsx#pbi_pc!peru"}
+  #     - {name: "Chile",    type: line, color: orange,    data: "excel:macro.xlsx#pbi_pc!chile"}
+  #     - {name: "Colombia", type: line, color: green,     data: "excel:macro.xlsx#pbi_pc!colombia"}
+  #     - {name: "México",   type: line, color: lightblue, data: "excel:macro.xlsx#pbi_pc!mexico"}
+
+  # ---------------------------------------------------------------------------
+  # B · Inflation and output gap  [PENDIENTE — HP filter required]
+  # Compute gap in Excel or Python using HP filter (lambda=100 for annual data),
+  # store as column brecha_pbi (percentage points).
+  #   gap = 100 * (ln(pbi) - hp_trend(ln(pbi)))
+  # ---------------------------------------------------------------------------
+  # - id: output_gap
+  #   title: "Brecha del Producto e Inflación"
+  #   subtitle: "Puntos porcentuales / Porcentaje"
+  #   source: BCRP
+  #   period: 1951:2025
+  #   series:
+  #     - {name: "Brecha del producto", type: bar,  color: green, data: "excel:macro.xlsx#anual!brecha_pbi"}
+  #     - {name: "Inflación",           type: line, color: blue,  data: "excel:macro.xlsx#anual!inflacion", axis: secondary}
