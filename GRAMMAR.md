@@ -137,6 +137,10 @@ What names a spec may select (the theme owns the values + the default):
   `bottom-right`. The theme owns the default (`bbva`: `below`; `macro`: `top-left`).
   Override per chart with `legend: top-left`. `below`/`above` are figure-level rows;
   the four corners sit inside the axes. Single-series charts have no legend by default.
+- **Number formatting** (theme-only — no per-chart override): `number_format.thousands`
+  and `number_format.decimal` set the separators used for value labels and y-axis ticks.
+  Both `bbva` and `macro` default to es-PE (`.` thousands, `,` decimal, e.g. `1.234,5`).
+  Declared once in the theme YAML; required at parse time.
 
 ## Render-time choices (NOT spec fields)
 One spec → many targets, chosen at render:
