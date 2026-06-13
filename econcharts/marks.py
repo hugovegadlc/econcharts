@@ -26,7 +26,7 @@ import warnings
 from dataclasses import dataclass
 
 from econcharts.data import parse_period
-from econcharts.theme import es_pe, value_decimals
+from econcharts.theme import value_decimals
 
 _Z_MARKER = 4.0
 _Z_LABEL = 5.0
@@ -92,7 +92,7 @@ def mark_indices(series, periods) -> list[int]:
                       owner=f"series {series.name!r}", field="mark.at")
 
 
-def draw_line_marks(ax, line_series, decimals, placed: list[PlacedMark]) -> None:
+def draw_line_marks(ax, line_series, decimals, placed: list[PlacedMark], theme) -> None:
     """Place all line marks, choosing each label's side by context: at a shared x
     the highest value goes above and the lowest below; for a lone point, a local
     maximum goes above and a local minimum below (labels sit on the outer side)."""
@@ -118,7 +118,7 @@ def draw_line_marks(ax, line_series, decimals, placed: list[PlacedMark]) -> None
                 side = _single_point_side(yarr, i)
             prev_pt = (xarr[i - 1], yarr[i - 1]) if i > 0 else None
             next_pt = (xarr[i + 1], yarr[i + 1]) if i < len(yarr) - 1 else None
-            _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_pt, placed)
+            _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_pt, placed, theme)
 
 
 def marked_values(series, periods, y) -> list[float]:
@@ -172,13 +172,13 @@ def perp_unit(ax, spec: PerpSpec):
 
 
 def _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_pt,
-                        placed: list[PlacedMark]) -> None:
+                        placed: list[PlacedMark], theme) -> None:
     if mark.marker:
         (dot,) = ax.plot([xi], [yi], marker="o", markersize=_MARKER_SIZE, color=color,
                          linestyle="none", zorder=_Z_MARKER)
         dot.set_in_layout(False)
         placed.append(PlacedMark(dot))
-    text = _label_text(mark, yi, decimals)
+    text = _label_text(mark, yi, decimals, theme)
     if text is not None:
         if side == "right":
             ann = _label(ax, text, (xi, yi), (6, 0), "left", "center", color)
@@ -190,16 +190,16 @@ def _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_p
             placed.append(PlacedMark(ann, perp=PerpSpec(xi, yi, prev_pt, next_pt, side)))
 
 
-def bar_mark(ax, mark, xi, value, color, decimals, placed: list[PlacedMark]) -> None:
-    text = _label_text(mark, value, decimals)
+def bar_mark(ax, mark, xi, value, color, decimals, theme, placed: list[PlacedMark]) -> None:
+    text = _label_text(mark, value, decimals, theme)
     if text is None:
         return
     va, dy = ("bottom", 3) if value >= 0 else ("top", -3)  # on top, or below if negative
     placed.append(PlacedMark(_label(ax, text, (xi, value), (0, dy), "center", va, color)))
 
 
-def area_mark(ax, mark, xi, top_i, value, color, decimals, placed: list[PlacedMark]) -> None:
-    text = _label_text(mark, value, decimals)
+def area_mark(ax, mark, xi, top_i, value, color, decimals, theme, placed: list[PlacedMark]) -> None:
+    text = _label_text(mark, value, decimals, theme)
     if text is None:
         return
     ann = _label(ax, text, (xi, top_i), (0, 3), "center", "bottom", color)  # just above the curve
@@ -208,7 +208,7 @@ def area_mark(ax, mark, xi, top_i, value, color, decimals, placed: list[PlacedMa
 
 def stacked_mark(ax, mark, xi, bottom, value, color, decimals, ctx, theme,
                  placed: list[PlacedMark]) -> None:
-    text = _label_text(mark, value, decimals)
+    text = _label_text(mark, value, decimals, theme)
     if text is None or value == 0:
         return
     y0, y1 = sorted((bottom, bottom + value))
@@ -233,11 +233,11 @@ def _resolve_points(at, periods) -> list[int]:
     return [i for i, p in enumerate(periods) if p in wanted]
 
 
-def _label_text(mark, value, decimals: int) -> str | None:
+def _label_text(mark, value, decimals: int, theme) -> str | None:
     if mark.text is not None:
         return mark.text          # custom text replaces the value
     if mark.value:
-        return es_pe(value, decimals)
+        return theme.format_number(value, decimals)
     return None
 
 

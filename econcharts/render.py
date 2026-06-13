@@ -123,7 +123,7 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         _validate_date_label(spec, theme)
         _apply_axes(ax, spec, long_df, has_bars, window, theme)
         if ax2 is not None:
-            _apply_secondary_axis(ax2, spec)
+            _apply_secondary_axis(ax2, spec, theme)
         _apply_titles(ax, spec, theme)
         _apply_legend(fig, ax, ax2, spec, theme)
         # marks (dots/value labels): hide stacked labels that don't fit their
@@ -233,7 +233,7 @@ def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
                 ctype.place_marks(ax, s, periods, x, y, color, mark_decimals, ctx, geom,
                                   theme, placed)
     if line_marks:
-        _marks.draw_line_marks(ax, line_marks, mark_decimals, placed)
+        _marks.draw_line_marks(ax, line_marks, mark_decimals, placed, theme)
     return placed
 
 
@@ -392,7 +392,7 @@ def _apply_axes(ax, spec: Spec, long_df: pd.DataFrame, has_bars: bool, window,
     frame = list(window) if window is not None else sorted(long_df["period"].unique())
     _set_period_ticks(ax, frame, boundary_marks=has_bars, theme=theme, style=spec.date_label)
     ax.set_axisbelow(True)  # grid behind all artists (bars, areas, lines)
-    ax.yaxis.set_major_formatter(EsPeNumber())
+    ax.yaxis.set_major_formatter(EsPeNumber(theme))
     if window is not None and frame:
         # Extend the x data-limits to the frame ends. update_datalim leaves y alone
         # when the y we pass sits inside the existing data range; when the data
@@ -406,7 +406,7 @@ def _apply_axes(ax, spec: Spec, long_df: pd.DataFrame, has_bars: bool, window,
         ax.set_ylabel(spec.ylabel)
 
 
-def _apply_secondary_axis(ax2, spec: Spec) -> None:
+def _apply_secondary_axis(ax2, spec: Spec, theme: Theme) -> None:
     """Style the right-hand twin: no grid of its own, es-PE ticks, y2label.
 
     Only the primary axis draws the gridlines; the twin shares the x-axis so it
@@ -414,7 +414,7 @@ def _apply_secondary_axis(ax2, spec: Spec) -> None:
     """
     ax2.grid(False)
     ax2.patch.set_visible(False)
-    ax2.yaxis.set_major_formatter(EsPeNumber())
+    ax2.yaxis.set_major_formatter(EsPeNumber(theme))
     ax2.tick_params(axis="x", bottom=False, labelbottom=False, top=False, labeltop=False)
     if spec.y2label:
         ax2.set_ylabel(spec.y2label, rotation=270, va="bottom")

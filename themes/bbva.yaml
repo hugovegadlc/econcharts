@@ -36,6 +36,11 @@ cycle: [blue, lightblue, green, orange, yellow, cyan, purple, grey, red, teal, g
 #     when a spec writes `highlight: last` without picking a color. ------------
 highlight: lightblue
 
+# --- number formatting: separators for value labels and y-axis ticks. ----------
+number_format:
+  thousands: "."   # es-PE: 1.234.567
+  decimal:   ","   # es-PE: 3,75
+
 # --- named export sizes (physical mm): BBVA add-in export presets.
 #     These match the global defaults but are declared here as documentation
 #     of the canonical BBVA target sizes. ----------------------------------------

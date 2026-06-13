@@ -113,12 +113,34 @@ def test_es_pe_value_minimal_decimals():
 
 
 def test_formatter_adapts_decimals_to_tick_spacing():
-    f = EsPeNumber()
+    f = EsPeNumber(load_theme("bbva"))
     f.set_locs([3.70, 3.75, 3.80, 3.85])  # 0.05 spacing -> 2 decimals, all distinct
     labels = [f(v) for v in (3.70, 3.75, 3.80)]
     assert labels == ["3,70", "3,75", "3,80"]
     f.set_locs([0, 2, 4, 6])              # integer spacing -> no decimals
     assert f(4) == "4"
+
+
+def test_format_number_es_pe():
+    theme = load_theme("bbva")
+    assert theme.format_number(1234567) == "1.234.567"
+    assert theme.format_number(3.75, 2) == "3,75"
+    assert theme.format_number(-1234.5, 1) == "-1.234,5"
+
+
+def test_format_number_respects_theme_separators(tmp_path, monkeypatch):
+    import yaml
+    import econcharts.theme as theme_mod
+
+    base = yaml.safe_load(
+        (theme_mod._THEMES_DIR / "bbva.yaml").read_text(encoding="utf-8")
+    )
+    base["number_format"] = {"thousands": ",", "decimal": "."}
+    (tmp_path / "en.yaml").write_text(yaml.dump(base), encoding="utf-8")
+    monkeypatch.setattr(theme_mod, "_THEMES_DIR", tmp_path)
+    theme = load_theme("en")
+    assert theme.format_number(1234567) == "1,234,567"
+    assert theme.format_number(3.75, 2) == "3.75"
 
 
 def test_legend_position_defaults_below_and_macro_is_inside():
@@ -157,7 +179,8 @@ _DL = {
     "Q": {"options": {"month": "{mmm}-{yy}"}, "default": "month"},
     "Y": {"options": {"full": "{yyyy}"},       "default": "full"},
 }
-_MINIMAL_RAW = {"annotations": _ANN, "date_labels": _DL}
+_NF = {"thousands": ".", "decimal": ","}
+_MINIMAL_RAW = {"annotations": _ANN, "date_labels": _DL, "number_format": _NF}
 _MINIMAL_SIZES = {"slides_half": (85, 70)}
 
 
@@ -180,19 +203,19 @@ def test_validate_missing_annotations_errors():
 def test_validate_missing_annotation_sub_errors(sub):
     ann = {k: v for k, v in _ANN.items() if k != sub}
     with pytest.raises(ThemeError, match=sub):
-        _validate_theme("t", {"annotations": ann, "date_labels": _DL}, _MINIMAL_SIZES)
+        _validate_theme("t", {**_MINIMAL_RAW, "annotations": ann}, _MINIMAL_SIZES)
 
 
 def test_validate_annotation_missing_role_errors():
     ann = {**_ANN, "line": {"grey": "grey", "orange": "orange"}}   # blue missing
     with pytest.raises(ThemeError, match="blue"):
-        _validate_theme("t", {"annotations": ann, "date_labels": _DL}, _MINIMAL_SIZES)
+        _validate_theme("t", {**_MINIMAL_RAW, "annotations": ann}, _MINIMAL_SIZES)
 
 
 def test_validate_annotation_missing_weight_errors():
     ann = {**_ANN, "weights": {"thin": 1.0}}                       # thick missing
     with pytest.raises(ThemeError, match="thick"):
-        _validate_theme("t", {"annotations": ann, "date_labels": _DL}, _MINIMAL_SIZES)
+        _validate_theme("t", {**_MINIMAL_RAW, "annotations": ann}, _MINIMAL_SIZES)
 
 
 def test_validate_missing_date_labels_errors():
@@ -205,19 +228,32 @@ def test_validate_missing_date_labels_errors():
 def test_validate_missing_granularity_errors(gran):
     dl = {k: v for k, v in _DL.items() if k != gran}
     with pytest.raises(ThemeError, match=gran):
-        _validate_theme("t", {"annotations": _ANN, "date_labels": dl}, _MINIMAL_SIZES)
+        _validate_theme("t", {**_MINIMAL_RAW, "date_labels": dl}, _MINIMAL_SIZES)
 
 
 def test_validate_bad_date_label_default_errors():
     dl = {**_DL, "Q": {"options": {"month": "{mmm}-{yy}"}, "default": "typo"}}
     with pytest.raises(ThemeError, match="default"):
-        _validate_theme("t", {"annotations": _ANN, "date_labels": dl}, _MINIMAL_SIZES)
+        _validate_theme("t", {**_MINIMAL_RAW, "date_labels": dl}, _MINIMAL_SIZES)
 
 
 def test_validate_empty_date_label_options_errors():
     dl = {**_DL, "Q": {"options": {}, "default": "month"}}
     with pytest.raises(ThemeError, match="options"):
-        _validate_theme("t", {"annotations": _ANN, "date_labels": dl}, _MINIMAL_SIZES)
+        _validate_theme("t", {**_MINIMAL_RAW, "date_labels": dl}, _MINIMAL_SIZES)
+
+
+def test_validate_missing_number_format_errors():
+    raw = {k: v for k, v in _MINIMAL_RAW.items() if k != "number_format"}
+    with pytest.raises(ThemeError, match="number_format"):
+        _validate_theme("t", raw, _MINIMAL_SIZES)
+
+
+@pytest.mark.parametrize("key", ["thousands", "decimal"])
+def test_validate_missing_number_format_key_errors(key):
+    nf = {k: v for k, v in _NF.items() if k != key}
+    with pytest.raises(ThemeError, match=key):
+        _validate_theme("t", {**_MINIMAL_RAW, "number_format": nf}, _MINIMAL_SIZES)
 
 
 # cycle validation (tested via load_theme with tmp yaml files)

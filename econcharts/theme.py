@@ -70,6 +70,8 @@ class Theme:
     highlight: Optional[str] = None                   # default bar-highlight hex
     legend_position: str = "below"                    # one of LEGEND_POSITIONS
     sizes_mm: dict = field(default_factory=dict)  # name -> (w_mm, h_mm); populated from theme yaml
+    num_thousands: str = "."  # thousands separator used by format_number
+    num_decimal: str = ","    # decimal separator used by format_number
 
     def style(self):
         """Context manager applying this theme's rcParams (built in memory)."""
@@ -146,6 +148,13 @@ class Theme:
             fields["d"], fields["mmm"] = str(period.day), _MONTHS_ES[period.month - 1]
         return pattern.format(**fields)
 
+    def format_number(self, value: float, decimals: int = 0) -> str:
+        """Format a number using the theme's thousands/decimal separators."""
+        s = f"{value:,.{decimals}f}"      # en-US base: ',' thousands, '.' decimal
+        return (s.replace(",", "\x00")
+                 .replace(".", self.num_decimal)
+                 .replace("\x00", self.num_thousands))
+
     def figsize(self, size: str) -> tuple[float, float]:
         """Resolve a named export size to a matplotlib figsize in inches.
 
@@ -167,6 +176,13 @@ def _validate_theme(name: str, raw: dict, sizes_mm: dict) -> None:
     granularities D/M/Q/Y, each with a non-empty options map and a valid default).
     colors and cycle are validated earlier in load_theme.
     """
+    nf = raw.get("number_format")
+    if not isinstance(nf, dict):
+        raise ThemeError(f"theme {name!r}: `number_format` section is required")
+    for key in ("thousands", "decimal"):
+        if key not in nf:
+            raise ThemeError(f"theme {name!r}: `number_format.{key}` is required")
+
     if not sizes_mm:
         raise ThemeError(
             f"theme {name!r}: `sizes` is required — declare at least one named size"
@@ -278,6 +294,8 @@ def load_theme(name: str) -> Theme:
         highlight=colors[highlight_name] if highlight_name else None,
         legend_position=legend_position,
         sizes_mm=sizes_mm,
+        num_thousands=raw["number_format"]["thousands"],
+        num_decimal=raw["number_format"]["decimal"],
     )
 
 
@@ -317,12 +335,17 @@ def es_pe_value(value: float, cap: int = 2) -> str:
 
 
 class EsPeNumber(Formatter):
-    """es-PE y-axis tick formatter with decimals chosen from the tick spacing.
+    """Theme-aware y-axis tick formatter with decimals chosen from the tick spacing.
 
     A single fixed number of decimals breaks on small-magnitude axes (e.g. an
     exchange rate where 3.75 and 3.80 would both round to '3,8'). This reads the
     actual tick locations and uses just enough decimals to keep them distinct.
+    The separators come from the theme (default es-PE: '.' thousands, ',' decimal).
     """
+
+    def __init__(self, theme: "Theme"):
+        super().__init__()
+        self._theme = theme
 
     def set_locs(self, locs):
         steps = [abs(b - a) for a, b in zip(sorted(locs), sorted(locs)[1:]) if b != a]
@@ -330,4 +353,4 @@ class EsPeNumber(Formatter):
         self._decimals = 0 if step >= 1 else int(math.ceil(-math.log10(step)))
 
     def __call__(self, x, pos=None):
-        return es_pe(x, getattr(self, "_decimals", 0))
+        return self._theme.format_number(x, getattr(self, "_decimals", 0))

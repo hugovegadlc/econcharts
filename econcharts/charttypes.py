@@ -133,7 +133,7 @@ class BarType(ChartType):
         # the label sits over the dodged bar, not the period centre
         offset = (geom.index - (geom.count - 1) / 2) * (ctx.step * ctx.bar_width_frac / geom.count)
         c = geom.colors[i] if geom.colors else color   # label matches its bar
-        marks.bar_mark(ax, mark, x[i] + offset, y[i], c, decimals, placed)
+        marks.bar_mark(ax, mark, x[i] + offset, y[i], c, decimals, theme, placed)
 
 
 class AreaType(ChartType):
@@ -145,7 +145,7 @@ class AreaType(ChartType):
         return AreaGeom(top=top)
 
     def _mark_one(self, ax, mark, i, x, y, geom, color, decimals, ctx, theme, placed):
-        marks.area_mark(ax, mark, x[i], geom.top[i], y[i], color, decimals, placed)
+        marks.area_mark(ax, mark, x[i], geom.top[i], y[i], color, decimals, theme, placed)
 
 
 class StackedType(ChartType):

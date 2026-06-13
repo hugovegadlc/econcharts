@@ -29,6 +29,11 @@ cycle: [blue, orange, green, lightblue, lightgreen, tan]
 #     when a spec writes `highlight: last` without picking a color. ------------
 highlight: orange
 
+# --- number formatting: separators for value labels and y-axis ticks. ----------
+number_format:
+  thousands: "."   # es-PE: 1.234.567
+  decimal:   ","   # es-PE: 3,75
+
 # --- named export sizes (physical mm): override the global BBVA presets.
 #     The R script (peru_macro_historical_v2.R) saves at 8×6 in = ~203×152 mm.
 #     slides_full matches that; slides_half is a proportional 100×75. ----------
