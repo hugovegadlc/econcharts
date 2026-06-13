@@ -928,3 +928,31 @@ def test_unknown_highlight_color_raises_render_error_naming_series():
     })
     with pytest.raises(RenderError, match="'A'.*unknown color 'chartreuse'"):
         render(spec)
+
+
+def _macro_two_lines(**over):
+    return Spec.from_dict({
+        "title": "T", "period": "2021Q1:2021Q4", "theme": "macro",
+        "series": [
+            {"name": "A", "type": "line", "data": [1, 2, 3, 4]},
+            {"name": "B", "type": "line", "data": [4, 3, 2, 1]},
+        ],
+        **over,
+    })
+
+
+def test_macro_theme_legend_sits_inside_the_axes():
+    fig = render(_macro_two_lines())
+    assert not fig.legends                       # no figure-level legend
+    assert fig.axes[0].get_legend() is not None  # inside the axes instead
+
+
+def test_spec_legend_overrides_theme_position():
+    fig = render(_macro_two_lines(legend="below"))
+    assert fig.legends                           # back to the figure-level row
+    assert fig.axes[0].get_legend() is None
+
+
+def test_unknown_legend_position_raises_render_error():
+    with pytest.raises(RenderError, match="legend position 'centered'"):
+        render(_macro_two_lines(legend="centered"))

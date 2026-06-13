@@ -353,6 +353,22 @@ charts:
     <tr><td>Year</td><td><code>full</code> → 2024</td></tr>
   </table>
 
+  <h3>Legend position · <code>legend</code></h3>
+  <p>Where the legend is drawn. The theme owns the default; override per chart with
+  <code>legend: &lt;position&gt;</code>:</p>
+  <table class="keys">
+    <tr><td><code>below</code></td><td>Row of entries below the chart area — the bbva default.</td></tr>
+    <tr><td><code>above</code></td><td>Row of entries above the chart area.</td></tr>
+    <tr><td><code>top-left</code></td><td>Inside the axes, upper-left corner — the macro default.</td></tr>
+    <tr><td><code>top-right</code></td><td>Inside the axes, upper-right corner.</td></tr>
+    <tr><td><code>bottom-left</code></td><td>Inside the axes, lower-left corner.</td></tr>
+    <tr><td><code>bottom-right</code></td><td>Inside the axes, lower-right corner.</td></tr>
+  </table>
+  <pre><code>legend: top-left        # inside the panel, upper-left corner
+legend: above           # row above the chart area</code></pre>
+  <p>Single-series charts have no legend by default. The legend appears once there are
+  two or more series, or when a series carries an explicit <code>label:</code> key.</p>
+
   <h3>Export size</h3>
   <p>A render-time choice — one spec can target several — set on the batch header or a chart, not
   inside the chart body. Physical millimetres:</p>

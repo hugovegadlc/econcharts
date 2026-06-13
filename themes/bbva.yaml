@@ -36,6 +36,11 @@ cycle: [blue, lightblue, green, orange, yellow, cyan, purple, grey, red, teal, g
 #     when a spec writes `highlight: last` without picking a color. ------------
 highlight: lightblue
 
+# --- legend placement: below | above (figure-level rows) or an inside corner
+#     (top-left/top-right/bottom-left/bottom-right). A chart may override. -----
+legend:
+  position: below
+
 # --- annotation form vocabulary (the small grey/orange/blue set a spec picks
 #     from) -> theme colors, per role. Values are color NAMES. ------------------
 annotations:

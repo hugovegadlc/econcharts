@@ -3,7 +3,7 @@
 A batch is a header (where data/outputs live + inheritable defaults + an optional
 id subset) plus a list of chart specs, each keyed by `id`. Each chart renders to its
 own figure named `<id>_<renderdate>.<backend>`. Inheritable settings resolve
-theme/size/backend/date_label as: header default -> chart override.
+theme/size/backend/date_label/legend as: header default -> chart override.
 
 The header is validated up front (clear errors on bad orchestration keys); each
 chart's BODY is validated lazily at render time so one malformed chart can't sink the
@@ -25,8 +25,8 @@ from econcharts.spec import SpecError, _format_validation_error
 from econcharts.theme import DEFAULT_SIZE
 
 #: settings a chart inherits from the header unless it sets its own (the cascade).
-#: theme/date_label are Spec fields (merged into the chart body); size/backend are
-#: render-time and travel on the job.
+#: theme/date_label/legend are Spec fields (merged into the chart body); size/backend
+#: are render-time and travel on the job.
 _DEFAULT_BACKEND = "png"
 _DEFAULT_OUTPUT_DIR = "figuras"
 
@@ -65,6 +65,7 @@ class Batch(BaseModel):
     size: Optional[str] = None
     backend: Optional[str] = None
     date_label: Optional[str] = None
+    legend: Optional[str] = None
     render: Optional[list[str]] = None          # id subset; None = all
     charts: list[dict[str, Any]] = Field(min_length=1)
 
@@ -131,6 +132,8 @@ class Batch(BaseModel):
                 body["theme"] = self.theme
             if "date_label" not in body and self.date_label is not None:
                 body["date_label"] = self.date_label
+            if "legend" not in body and self.legend is not None:
+                body["legend"] = self.legend
             jobs.append(ChartJob(cid, body, size, backend,
                                  out_dir / f"{cid}_{stamp}.{backend}"))
         return jobs

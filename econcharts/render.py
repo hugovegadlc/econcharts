@@ -32,6 +32,7 @@ from econcharts.data import (
 from econcharts.spec import Series, Spec
 from econcharts.theme import (
     DEFAULT_SIZE,
+    LEGEND_POSITIONS,
     EsPeNumber,
     Theme,
     ThemeError,
@@ -118,12 +119,13 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
             span_end=_date_to_end,
         )
         _annotations.draw_annotations(ax, spec, coords, theme)
+        _validate_legend(spec)
         _validate_date_label(spec, theme)
         _apply_axes(ax, spec, long_df, has_bars, window, theme)
         if ax2 is not None:
             _apply_secondary_axis(ax2, spec)
         _apply_titles(ax, spec, theme)
-        _apply_legend(fig, ax, ax2, spec)
+        _apply_legend(fig, ax, ax2, spec, theme)
         # marks (dots/value labels): hide stacked labels that don't fit their
         # segment, then grow the axis limits so edge labels aren't clipped.
         for a, a_placed in ((ax, placed), (ax2, placed2)):
@@ -361,6 +363,15 @@ def _build_context(long_df: pd.DataFrame) -> charttypes.RenderContext:
     return charttypes.RenderContext(step=step)
 
 
+def _validate_legend(spec: Spec) -> None:
+    """A chart's `legend` must name a known position. Catch typos with the choices."""
+    if spec.legend is not None and spec.legend not in LEGEND_POSITIONS:
+        raise RenderError(
+            f"unknown legend position {spec.legend!r}; "
+            f"choose from: {', '.join(LEGEND_POSITIONS)}"
+        )
+
+
 def _validate_date_label(spec: Spec, theme: Theme) -> None:
     """A chart's `date_label` must name a style defined for some granularity (it is
     applied per-granularity where valid). Catch typos early with the valid choices."""
@@ -469,7 +480,17 @@ def _apply_titles(ax, spec: Spec, theme: Theme) -> None:
                      fontsize=8, color=theme.colors["slate"], fontweight="normal")
 
 
-def _apply_legend(fig, ax, ax2, spec: Spec) -> None:
+# Inside (axes-level) legend corners -> matplotlib loc strings. `below`/`above`
+# are figure-level and handled separately.
+_INSIDE_LEGEND_LOCS = {
+    "top-left": "upper left",
+    "top-right": "upper right",
+    "bottom-left": "lower left",
+    "bottom-right": "lower right",
+}
+
+
+def _apply_legend(fig, ax, ax2, spec: Spec, theme: Theme) -> None:
     # One combined legend across both axes (primary handles first, then secondary).
     handles, labels = ax.get_legend_handles_labels()
     if ax2 is not None:
@@ -477,14 +498,22 @@ def _apply_legend(fig, ax, ax2, spec: Spec) -> None:
         handles, labels = handles + h2, labels + l2
     if not (len(labels) > 1 or spec.series[0].label):
         return
-    # A figure-level legend placed OUTSIDE, bottom-left: constrained layout
-    # reserves room for it inside the fixed canvas. Wrap to as many rows as
-    # needed so a wide legend row never overflows the fixed width.
-    fig.legend(
-        handles, labels,
-        loc="outside lower left",
-        ncol=_legend_columns(labels, fig.get_figwidth()),
-    )
+    position = spec.legend or theme.legend_position
+    if position in ("below", "above"):
+        # A figure-level horizontal legend OUTSIDE the axes: constrained layout
+        # reserves room for it inside the fixed canvas. Wrap to as many rows as
+        # needed so a wide legend row never overflows the fixed width.
+        fig.legend(
+            handles, labels,
+            loc=f"outside {'lower' if position == 'below' else 'upper'} left",
+            ncol=_legend_columns(labels, fig.get_figwidth()),
+        )
+    else:
+        # Inside the axes (ggplot-style): a vertical stack in the named corner,
+        # reserving no layout space — the plot keeps its full size and the
+        # author owns the collision risk. Drawn on the top-most axes so it
+        # sits above both axes' artists.
+        (ax2 or ax).legend(handles, labels, loc=_INSIDE_LEGEND_LOCS[position])
 
 
 def _legend_columns(labels, fig_width_in: float, fontsize: float = 8.0) -> int:

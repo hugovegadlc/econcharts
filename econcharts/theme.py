@@ -36,6 +36,12 @@ SIZES_MM: dict[str, tuple[float, float]] = {
 }
 DEFAULT_SIZE = "slides_half"
 
+# Where a theme puts the chart legend (a chart spec may override by name).
+# `below`/`above` are figure-level horizontal rows outside the axes (constrained
+# layout reserves room); the four corners sit INSIDE the axes (ggplot-style),
+# stacked vertically, reserving nothing — the author owns collision risk.
+LEGEND_POSITIONS = ("below", "above", "top-left", "top-right", "bottom-left", "bottom-right")
+
 
 
 # es-PE month/quarter abbreviations (lowercase, no diacritics on the stem).
@@ -63,6 +69,7 @@ class Theme:
     ann_lines: dict[str, str] = field(default_factory=dict)
     date_labels: dict = field(default_factory=dict)   # granularity -> {options, default}
     highlight: Optional[str] = None                   # default bar-highlight hex
+    legend_position: str = "below"                    # one of LEGEND_POSITIONS
 
     def style(self):
         """Context manager applying this theme's rcParams (built in memory)."""
@@ -175,6 +182,13 @@ def load_theme(name: str) -> Theme:
             f"theme {name!r}: highlight names an undefined color {highlight_name!r}"
         )
 
+    legend_position = (raw.get("legend") or {}).get("position", "below")
+    if legend_position not in LEGEND_POSITIONS:
+        raise ThemeError(
+            f"theme {name!r}: unknown legend position {legend_position!r}; "
+            f"choose from: {', '.join(LEGEND_POSITIONS)}"
+        )
+
     ann = raw.get("annotations", {})
     return Theme(
         name=name,
@@ -189,6 +203,7 @@ def load_theme(name: str) -> Theme:
         ann_lines=ann.get("lines", {}),
         date_labels=raw.get("date_labels", {}),
         highlight=colors[highlight_name] if highlight_name else None,
+        legend_position=legend_position,
     )
 
 

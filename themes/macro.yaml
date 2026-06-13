@@ -1,0 +1,107 @@
+# Macro teaching style — extracted from `macro source/peru_macro_historical_v2.R`
+# (theme_hugo(): ggplot2 theme_bw, no panel border, black x/y axis lines; the
+# color1-6 palette). The author edits THIS file only; theme.py consumes it.
+#
+# Colors are named ONCE in `colors`; every other section (cycle, annotations, rc)
+# and every chart spec refers to those NAMES, never raw hex.
+
+# --- the theme's full named palette (name -> hex), defined once ---------------
+colors:
+  # series palette: color1-6 in the R script (rgb fractions -> hex)
+  blue:       "#0000A3"   # color1 — the workhorse single-series color
+  orange:     "#F07000"   # color2
+  green:      "#0DB840"   # color3
+  lightblue:  "#7F7FF0"   # color4 (periwinkle)
+  lightgreen: "#99F0B3"   # color5
+  tan:        "#F0C39C"   # color6
+  # structural / text colors, not in the series cycle
+  grey:       "#7F7F7F"   # R grey50 — reference lines
+  structural: "#EBEBEB"   # theme_bw gridline grey (grey92)
+  ink:        "#000000"   # body text / axis labels (ggplot default black)
+  slate:      "#000000"   # subtitle + legend text (black in the R theme)
+  leadergrey: "#9A9A9A"   # leader lines for spread right-labels
+  white:      "#FFFFFF"   # contrast text on dark fills
+
+# --- series prop_cycle, by NAME (order matters: color1 -> color6) -------------
+cycle: [blue, orange, green, lightblue, lightgreen, tan]
+
+# --- default bar-highlight color (a NAME): the emphasis shade chosen bars take
+#     when a spec writes `highlight: last` without picking a color. ------------
+highlight: orange
+
+# --- legend placement: the R theme puts legends INSIDE the panel, top-left
+#     (theme_hugo legend_position = c(0.15, 0.88)). A chart may override. ------
+legend:
+  position: top-left
+
+# --- annotation form vocabulary (grey/orange/blue) -> theme colors, per role.
+#     The R script draws its zero lines dashed grey50 / orange (graphs 9, D). ---
+annotations:
+  line:   {grey: grey, orange: orange, blue: blue}         # reference lines
+  fill:   {grey: structural, orange: tan, blue: lightblue} # span/band shading
+  label:  {grey: grey, orange: orange, blue: blue}         # region label text
+  fill_alpha: 0.25
+  weights: {thin: 1.0, thick: 2.0}
+  lines:   {solid: "-", dotted: ":"}
+
+# --- date-axis label formats, per DISPLAY granularity (same patterns as bbva;
+#     the R graphs label long annual spans by bare year). ----------------------
+date_labels:
+  D: {options: {plain: "{d}-{mmm}", dotted: "{d}-{mmm}."},   default: plain}   # 15-jul
+  M: {options: {plain: "{mmm}-{yy}", dotted: "{mmm}.-{yy}"}, default: plain}   # mar-24
+  Q: {options: {quarter: "{q}T{yy}", month: "{mmm}-{yy}"},   default: month}   # mar-24 / 1T24
+  Y: {options: {full: "{yyyy}"},                             default: full}    # 2024
+
+# --- matplotlib rcParams (form). Values matching a color name resolve to hex. --
+rc:
+  figure.figsize:        [3.346, 2.756]
+  figure.facecolor:      white          # theme_bw: white panel, NOT transparent
+  savefig.facecolor:     white
+
+  font.family:           sans-serif
+  font.sans-serif:       [Arial, Helvetica, Liberation Sans, DejaVu Sans]
+  font.size:             8
+  axes.titlesize:        11
+  axes.labelsize:        8
+  xtick.labelsize:       8
+  ytick.labelsize:       8
+  legend.fontsize:       8
+
+  # theme_hugo: panel border off, but explicit black x AND y axis lines
+  axes.spines.top:       false
+  axes.spines.right:     false
+  axes.spines.left:      true
+  axes.spines.bottom:    true
+  axes.edgecolor:        ink
+  axes.linewidth:        1.0
+
+  text.color:            ink
+  axes.labelcolor:       ink
+  xtick.color:           ink
+  ytick.color:           ink
+  axes.titlecolor:       ink
+  axes.titlelocation:    left
+  axes.titleweight:      normal         # ggplot titles are plain, not bold
+
+  # theme_bw grids BOTH axes in light grey
+  axes.grid:             true
+  axes.grid.axis:        both
+  grid.color:            structural
+  grid.linewidth:        0.5
+  grid.alpha:            1.0
+
+  xtick.direction:       out
+  ytick.direction:       out
+  xtick.major.size:      3
+  ytick.major.size:      3
+  ytick.major.pad:       2
+
+  lines.linewidth:       2.5            # ggplot linewidth 1.25 (~0.94 mm)
+  lines.solid_capstyle:  round
+
+  legend.frameon:        false
+  legend.loc:            lower left
+  legend.labelcolor:     slate
+  legend.handlelength:   1.4
+  legend.columnspacing:  1.2
+  legend.borderaxespad:  0.0

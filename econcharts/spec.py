@@ -253,6 +253,10 @@ class Spec(BaseModel):
     # Selects a theme date-label style by NAME (e.g. `quarter`/`month`, `plain`/
     # `dotted`), applied per granularity where defined; default = the theme's.
     date_label: Optional[str] = None
+    # Legend position by NAME (below/above/top-left/...), overriding the theme's
+    # default — for charts where the default corner collides with data. Validated
+    # at render against theme.LEGEND_POSITIONS (same pattern as `color`).
+    legend: Optional[str] = None
 
     _coerce_period = field_validator("period", mode="before")(_coerce_period_token)
 

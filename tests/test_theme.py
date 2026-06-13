@@ -110,3 +110,20 @@ def test_formatter_adapts_decimals_to_tick_spacing():
     assert labels == ["3,70", "3,75", "3,80"]
     f.set_locs([0, 2, 4, 6])              # integer spacing -> no decimals
     assert f(4) == "4"
+
+
+def test_legend_position_defaults_below_and_macro_is_inside():
+    assert load_theme("bbva").legend_position == "below"
+    assert load_theme("macro").legend_position == "top-left"
+
+
+def test_unknown_legend_position_errors(tmp_path, monkeypatch):
+    import econcharts.theme as theme_mod
+
+    (tmp_path / "bad.yaml").write_text(
+        "colors: {blue: '#001391'}\ncycle: [blue]\nlegend: {position: floating}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(theme_mod, "_THEMES_DIR", tmp_path)
+    with pytest.raises(ThemeError, match="unknown legend position 'floating'"):
+        load_theme("bad")

@@ -29,6 +29,7 @@ with errors naming the offending key.
 | `ylabel` | string? | primary y-axis label |
 | `y2label` | string? | secondary y-axis label |
 | `date_label` | string? | selects a theme date-label style by name — see **Date labels** |
+| `legend` | string? | legend position by name, overriding the theme's default — see vocabularies |
 | `series` | list | **required**, ≥1 — see **Series** |
 | `annotations` | list | optional — see **Annotations** |
 | `style` | map | escape hatch: raw rcParam / axis overrides. Rarely touched. |
@@ -132,6 +133,10 @@ What names a spec may select (the theme owns the values + the default):
   D `plain`(15-jul)/`dotted`(15-jul.) · M `plain`(mar-24)/`dotted`(mar.-24) ·
   Q `month`(mar-24, **default**)/`quarter`(1T24) · Y `full`(2024). The axis chooses the
   granularity adaptively (finest that fits the width; daily→month→quarter→year).
+- **`legend` position**: `below` `above` `top-left` `top-right` `bottom-left`
+  `bottom-right`. The theme owns the default (`bbva`: `below`; `macro`: `top-left`).
+  Override per chart with `legend: top-left`. `below`/`above` are figure-level rows;
+  the four corners sit inside the axes. Single-series charts have no legend by default.
 
 ## Render-time choices (NOT spec fields)
 One spec → many targets, chosen at render:
