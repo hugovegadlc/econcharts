@@ -49,6 +49,15 @@ _BACKENDS = {
     "svg": dict(),
 }
 
+# rcParams applied only during savefig (via rc_context) — backend-specific
+# settings that must not pollute global state across a batch run.
+# svg.fonttype="none": text as <text> elements (selectable, LaTeX-compatible).
+# pdf.fonttype=42: TrueType/OpenType fonts embedded; avoids Type-3 bitmaps.
+_BACKEND_RC = {
+    "svg": {"svg.fonttype": "none"},
+    "pdf": {"pdf.fonttype": 42},
+}
+
 
 class RenderError(EconchartsError):
     """A spec was valid but could not be rendered."""
@@ -141,7 +150,8 @@ def save(fig: Figure, out: Union[str, Path], backend: Optional[str] = None) -> P
     if backend not in _BACKENDS:
         raise RenderError(f"unknown backend {backend!r}; choose from {sorted(_BACKENDS)}")
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, format=backend, **_BACKENDS[backend])
+    with plt.rc_context(_BACKEND_RC.get(backend, {})):
+        fig.savefig(out, format=backend, **_BACKENDS[backend])
     return out
 
 

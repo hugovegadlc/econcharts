@@ -735,6 +735,23 @@ def test_save_rejects_unknown_backend(example_spec, tmp_path):
         save(render(example_spec), tmp_path / "chart.xyz")
 
 
+def test_save_svg_title_is_searchable_text(tmp_path):
+    """svg.fonttype='none' keeps text as <text> elements — title must be a literal
+    string in the file, not encoded as path glyph data."""
+    spec = Spec(**{
+        "title": "SVG_TITLE_SENTINEL",
+        "series": [{"name": "A", "type": "line", "data": [1, 2, 3]}],
+        "period": "2024:2026",
+    })
+    out = save(render(spec), tmp_path / "chart.svg")
+    assert "SVG_TITLE_SENTINEL" in out.read_text(encoding="utf-8")
+
+
+def test_save_pdf_writes_file(example_spec, tmp_path):
+    out = save(render(example_spec), tmp_path / "chart.pdf")
+    assert out.exists() and out.stat().st_size > 0
+
+
 # --- visual regression (golden images in tests/baseline/) ---
 
 _SAVEFIG = {"dpi": 150}  # no bbox_inches="tight": exact named size is enforced
