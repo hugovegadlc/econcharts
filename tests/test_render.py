@@ -16,7 +16,7 @@ from matplotlib.figure import Figure
 from econcharts import render, save
 from econcharts.render import RenderError
 from econcharts.spec import Spec
-from econcharts.theme import SIZES_MM, Theme
+from econcharts.theme import Theme, load_theme
 
 _QLABEL = re.compile(r"^\dT\d{2}$")
 
@@ -36,15 +36,13 @@ def test_render_returns_figure(example_spec):
     assert isinstance(render(example_spec), Figure)
 
 
-@pytest.mark.parametrize("size", list(SIZES_MM))
+@pytest.mark.parametrize("size", list(load_theme("bbva").sizes_mm))
 def test_render_applies_named_size(example_spec, size):
-    from econcharts.theme import load_theme
     fig = render(example_spec, size=size)
     assert tuple(fig.get_size_inches()) == pytest.approx(load_theme("bbva").figsize(size))
 
 
 def test_default_size_is_slides_half(example_spec):
-    from econcharts.theme import load_theme
     fig = render(example_spec)
     assert tuple(fig.get_size_inches()) == pytest.approx(load_theme("bbva").figsize("slides_half"))
 

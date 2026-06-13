@@ -26,14 +26,7 @@ _THEMES_DIR = Path(__file__).resolve().parent.parent / "themes"
 
 _MM_PER_INCH = 25.4
 
-# Named export sizes (physical mm, width x height), from the BBVA add-in's
-# export presets. Size is a render-time choice — one spec, many targets.
-SIZES_MM: dict[str, tuple[float, float]] = {
-    "word_half": (75, 60),
-    "word_full": (117, 60),
-    "slides_half": (85, 70),
-    "slides_full": (140, 75),
-}
+# The default named size; the actual mm for each name live in the theme YAML.
 DEFAULT_SIZE = "slides_half"
 
 # Where a theme puts the chart legend (a chart spec may override by name).
@@ -70,7 +63,7 @@ class Theme:
     date_labels: dict = field(default_factory=dict)   # granularity -> {options, default}
     highlight: Optional[str] = None                   # default bar-highlight hex
     legend_position: str = "below"                    # one of LEGEND_POSITIONS
-    sizes_mm: dict = field(default_factory=lambda: dict(SIZES_MM))  # name -> (w, h) mm
+    sizes_mm: dict = field(default_factory=dict)  # name -> (w_mm, h_mm); populated from theme yaml
 
     def style(self):
         """Context manager applying this theme's rcParams (built in memory)."""
@@ -194,8 +187,7 @@ def load_theme(name: str) -> Theme:
             f"choose from: {', '.join(LEGEND_POSITIONS)}"
         )
 
-    raw_sizes = raw.get("sizes", {})
-    sizes_mm = {**SIZES_MM, **{k: tuple(v) for k, v in raw_sizes.items()}}
+    sizes_mm = {k: tuple(v) for k, v in raw.get("sizes", {}).items()}
 
     ann = raw.get("annotations", {})
     return Theme(

@@ -7,7 +7,6 @@ import pytest
 
 from econcharts.theme import (
     DEFAULT_SIZE,
-    SIZES_MM,
     EsPeNumber,
     ThemeError,
     es_pe,
@@ -61,7 +60,7 @@ def test_default_size_is_slides_half():
     assert DEFAULT_SIZE == "slides_half"
 
 
-@pytest.mark.parametrize("name,mm", SIZES_MM.items())
+@pytest.mark.parametrize("name,mm", load_theme("bbva").sizes_mm.items())
 def test_figsize_matches_mm(name, mm):
     theme = load_theme("bbva")
     w_in, h_in = theme.figsize(name)
@@ -81,11 +80,10 @@ def test_theme_sizes_override_globals():
     assert h_in == pytest.approx(150 / 25.4)
 
 
-def test_theme_sizes_keep_unoverridden_globals():
+def test_theme_sizes_undeclared_size_errors():
     theme = load_theme("macro")
-    w_in, h_in = theme.figsize("word_half")
-    assert w_in == pytest.approx(75 / 25.4)
-    assert h_in == pytest.approx(60 / 25.4)
+    with pytest.raises(ThemeError, match="unknown size"):
+        theme.figsize("word_half")   # macro declares only slides_half/slides_full
 
 
 def test_quarter_label_is_qTyy():
