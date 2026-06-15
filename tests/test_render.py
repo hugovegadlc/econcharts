@@ -751,7 +751,41 @@ def test_save_rejects_unknown_backend(example_spec, tmp_path):
         save(render(example_spec), tmp_path / "chart.xyz")
 
 
-def test_save_svg_title_is_searchable_text(tmp_path):
+# --- vector backends (svg / pdf) ---
+
+@pytest.mark.parametrize("backend", ["png", "svg", "pdf"])
+@pytest.mark.parametrize("size", ["slides_half", "slides_full", "word_half", "word_full"])
+def test_save_all_backends_and_sizes(example_spec, tmp_path, backend, size):
+    """Every backend × named size renders and writes a non-empty file."""
+    out = save(render(example_spec, size=size), tmp_path / f"chart.{backend}")
+    assert out.exists() and out.stat().st_size > 0
+
+
+def test_png_background_is_transparent(example_spec, tmp_path):
+    """transparent=True: the figure background (top-left corner) has alpha=0."""
+    from PIL import Image
+    import numpy as np
+
+    out = save(render(example_spec), tmp_path / "chart.png")
+    arr = np.array(Image.open(out).convert("RGBA"))
+    assert arr[0, 0, 3] == 0   # top-left corner is fully transparent
+
+
+def test_svg_physical_size_matches_named_preset(example_spec, tmp_path):
+    """SVG width/height (in pt) must equal the named size converted from inches at 72 pt/in."""
+    import xml.etree.ElementTree as ET
+    from econcharts.theme import load_theme
+
+    w_in, h_in = load_theme("bbva").figsize("slides_half")
+    out = save(render(example_spec, size="slides_half"), tmp_path / "chart.svg")
+    root = ET.parse(out).getroot()
+    w_pt = float(root.get("width").rstrip("pt"))
+    h_pt = float(root.get("height").rstrip("pt"))
+    assert w_pt == pytest.approx(w_in * 72, abs=1)
+    assert h_pt == pytest.approx(h_in * 72, abs=1)
+
+
+def test_svg_title_is_searchable_text(tmp_path):
     """svg.fonttype='none' keeps text as <text> elements — title must be a literal
     string in the file, not encoded as path glyph data."""
     spec = Spec(**{
@@ -761,6 +795,20 @@ def test_save_svg_title_is_searchable_text(tmp_path):
     })
     out = save(render(spec), tmp_path / "chart.svg")
     assert "SVG_TITLE_SENTINEL" in out.read_text(encoding="utf-8")
+
+
+def test_svg_tick_labels_are_searchable_text(tmp_path):
+    """svg.fonttype='none' applies to all text, not just the title — tick labels
+    must also be literal strings, not paths."""
+    spec = Spec(**{
+        "title": "T",
+        "series": [{"name": "A", "type": "line", "data": [1, 2, 3, 4]}],
+        "period": "2024Q1:2024Q4",
+    })
+    svg = save(render(spec), tmp_path / "chart.svg").read_text(encoding="utf-8")
+    # quarterly tick labels default to closing-month format: mar-24, jun-24, …
+    assert "mar-24" in svg
+    assert "jun-24" in svg
 
 
 def test_save_pdf_writes_file(example_spec, tmp_path):
