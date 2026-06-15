@@ -56,6 +56,7 @@ source_prefix: "Fuente:"
 
 legend:
   position: below
+  background: ~          # null = transparent (outside legend sits on figure background)
 
 # --- annotation form vocabulary (the small grey/orange/blue set a spec picks
 #     from) -> theme colors, per role. Values are color NAMES. ------------------

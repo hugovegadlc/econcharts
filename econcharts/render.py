@@ -568,7 +568,11 @@ def _apply_legend(fig, ax, ax2, spec: Spec, theme: Theme) -> None:
         # reserving no layout space — the plot keeps its full size and the
         # author owns the collision risk. Drawn on the top-most axes so it
         # sits above both axes' artists.
-        (ax2 or ax).legend(handles, labels, loc=_INSIDE_LEGEND_LOCS[position])
+        legend_kw = dict(borderaxespad=0.5)
+        if theme.legend_background is not None:
+            legend_kw.update(frameon=True, facecolor=theme.legend_background,
+                             edgecolor="none", framealpha=1.0)
+        (ax2 or ax).legend(handles, labels, loc=_INSIDE_LEGEND_LOCS[position], **legend_kw)
 
 
 def _legend_columns(labels, fig_width_in: float, fontsize: float = 8.0) -> int:

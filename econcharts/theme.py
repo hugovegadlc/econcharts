@@ -69,6 +69,7 @@ class Theme:
     date_labels: dict = field(default_factory=dict)   # granularity -> {options, default}
     highlight: Optional[str] = None                   # default bar-highlight hex
     legend_position: str = "below"                    # one of LEGEND_POSITIONS
+    legend_background: Optional[str] = None           # hex or None (transparent)
     sizes_mm: dict = field(default_factory=dict)  # name -> (w_mm, h_mm); populated from theme yaml
     num_thousands: str = "."  # thousands separator used by format_number
     num_decimal: str = ","    # decimal separator used by format_number
@@ -269,12 +270,19 @@ def load_theme(name: str) -> Theme:
             f"theme {name!r}: highlight names an undefined color {highlight_name!r}"
         )
 
-    legend_position = (raw.get("legend") or {}).get("position", "below")
+    legend_raw = raw.get("legend") or {}
+    legend_position = legend_raw.get("position", "below")
     if legend_position not in LEGEND_POSITIONS:
         raise ThemeError(
             f"theme {name!r}: unknown legend position {legend_position!r}; "
             f"choose from: {', '.join(LEGEND_POSITIONS)}"
         )
+    legend_bg_name = legend_raw.get("background")
+    if legend_bg_name is not None and legend_bg_name not in colors:
+        raise ThemeError(
+            f"theme {name!r}: legend.background names an undefined color {legend_bg_name!r}"
+        )
+    legend_background = colors[legend_bg_name] if legend_bg_name else None
 
     sizes_mm = {k: tuple(v) for k, v in raw.get("sizes", {}).items()}
     _validate_theme(name, raw, sizes_mm)
@@ -294,6 +302,7 @@ def load_theme(name: str) -> Theme:
         date_labels=raw.get("date_labels", {}),
         highlight=colors[highlight_name] if highlight_name else None,
         legend_position=legend_position,
+        legend_background=legend_background,
         sizes_mm=sizes_mm,
         num_thousands=raw["number_format"]["thousands"],
         num_decimal=raw["number_format"]["decimal"],

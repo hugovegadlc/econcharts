@@ -48,6 +48,7 @@ source_prefix: "Fuente:"
 
 legend:
   position: top-left
+  background: white      # opaque fill so inside legend occludes gridlines/data
 
 # --- annotation form vocabulary (grey/orange/blue) -> theme colors, per role.
 #     The R script draws its zero lines dashed grey50 / orange (graphs 9, D). ---
