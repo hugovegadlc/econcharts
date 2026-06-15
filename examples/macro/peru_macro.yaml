@@ -180,22 +180,29 @@ charts:
   # facets yet. The deck will place tcn_nivel and tcn_dep side by side.
   # Column tcn used as-is from the mensual sheet.
   # ---------------------------------------------------------------------------
+  # Stack tcn_nivel on top of tcn_dep in PowerPoint to mimic the R facet_wrap.
+  # Both use size: slides_panel (200×68 mm — full width, half height).
+  # tcn_nivel hides its x-axis labels so the shared time axis reads only once.
   - id: tcn_nivel
     title: "Tipo de Cambio Nominal"
     subtitle: "Soles por dólar"
     source: BCRP
+    size: slides_panel
     period: 1993M12:2026M02
     series:
       - {name: "Tipo de cambio", type: line, color: blue, data: "excel:macro.xlsx#mensual!tcn"}
+    style:
+      xtick.labelbottom: false
 
   # ---------------------------------------------------------------------------
   # 10b · Nominal exchange rate — monthly depreciation (%)
   # TODO mensual sheet: tcn_var = 100*(tcn/lag(tcn) - 1)
   # ---------------------------------------------------------------------------
   - id: tcn_dep
-    title: "Tipo de Cambio Nominal"
+    title: ""
     subtitle: "Depreciación mensual, %"
     source: BCRP
+    size: slides_panel
     period: 1993M12:2026M02
     series:
       - {name: "Depreciación mensual", type: line, color: orange, data: "excel:macro.xlsx#mensual!tcn_var"}
