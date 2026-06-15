@@ -151,24 +151,72 @@ def _single_point_side(y, i) -> str:
 PERP_GAP = 3.0
 
 
+# Minimum horizontal component of the perpendicular vector before the
+# slope-aware offset is applied. Below this (~17° slope) the perpendicular
+# is nearly vertical and the label cannot meaningfully overlap the line.
+PERP_SLOPE_THRESHOLD = 0.3
+
+
 def perp_unit(ax, spec: PerpSpec):
-    """Unit vector perpendicular to the line's local slope (display space), on the
-    chosen side. Render scales it by the label's reach + PERP_GAP so the visible
-    gap stays constant whatever the slope or label width."""
+    """Perpendicular unit vector (display space) on the chosen side, plus
+    an extremum flag.
+
+    Returns (ox, oy, extremum):
+      ox, oy    — unit vector perpendicular to the local slope, pointing to `side`.
+      extremum  — True when the slopes on either side have opposite signs (local min
+                  or max), or at an endpoint. Render uses a plain vertical offset at
+                  extrema and on shallow slopes; the perpendicular is only applied on
+                  steep monotone sections where a vertical label could overlap the line.
+
+    On steep monotone sections the tangent is chosen by curvature: rising lines use
+    the incoming slope (m0), falling lines use the outgoing slope (m1). This encodes
+    the curvature rule (sign of slope × Δslope) as a single perpendicular direction
+    rather than two competing offsets.
+    """
     side = spec.side
     p = ax.transData.transform((spec.xi, spec.yi))
     ends = [ax.transData.transform(q) for q in (spec.prev_pt, spec.next_pt) if q is not None]
+
+    extremum = False
+    m0 = m1 = None
     if len(ends) == 2:
-        tx, ty = ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]
+        dx0 = p[0] - ends[0][0] or 1e-9
+        dx1 = ends[1][0] - p[0] or 1e-9
+        m0 = (p[1] - ends[0][1]) / dx0
+        m1 = (ends[1][1] - p[1]) / dx1
+        if math.isfinite(m0) and math.isfinite(m1):
+            extremum = (m0 * m1 <= 0)
+            if not extremum:
+                if abs(m0) >= abs(m1):
+                    tx, ty = p[0] - ends[0][0], p[1] - ends[0][1]   # incoming is steeper
+                else:
+                    tx, ty = ends[1][0] - p[0], ends[1][1] - p[1]   # outgoing is steeper
+            else:
+                tx, ty = ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]
+        else:
+            tx, ty = ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]
     elif len(ends) == 1:
         tx, ty = ends[0][0] - p[0], ends[0][1] - p[1]
+        extremum = True
     else:
         tx, ty = 1.0, 0.0
+
     n = math.hypot(tx, ty) or 1.0
-    ox, oy = -ty / n, tx / n                       # unit perpendicular (display)
-    if (side == "above") != (oy > 0):              # point it to the chosen side
+    ox, oy = -ty / n, tx / n
+    if (side == "above") != (oy > 0):
         ox, oy = -ox, -oy
-    return ox, oy
+    # When slope and curvature have opposite signs the right-going lobe of the
+    # perpendicular drifts toward the adjacent labelled point; use the left-going
+    # lobe instead. For growing+decelerating the m0-based tangent already gives
+    # ox < 0, so the guard (ox > 0) means no flip is needed there.
+    # Positive curvature (m1 > m0, concave up): take the other perpendicular lobe.
+    # The label moves to the concave inside — can land below the data point, which
+    # is intentional (e.g. falling+recovering places the label away from the curve).
+    # Only applied to "above" marks; "below" marks in multi-series charts must stay
+    # below their line and away from the upper series, so standard placement suffices.
+    if not extremum and m0 is not None and m1 is not None and m1 > m0 and side == "above":
+        ox, oy = -ox, -oy
+    return ox, oy, extremum
 
 
 def _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_pt,

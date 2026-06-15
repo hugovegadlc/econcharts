@@ -198,6 +198,21 @@ charts:
     series:
       - {name: PEN/USD, type: line, data: "excel:datos.xlsx#diario!pen_usd"}
 
+  # Dense marks on two crossing lines — exercises above/below curvature lobe logic.
+  - id: dos_lineas_densas
+    title: Dos series — cruzan y se alejan
+    subtitle: prueba de etiquetas densas con cruce
+    period: 2021Q1:2023Q4
+    series:
+      - name: Serie A
+        type: line
+        mark: all
+        data: [7.0, 6.4, 5.5, 4.3, 3.2, 2.3, 1.8, 1.6, 1.7, 2.0, 2.4, 2.9]
+      - name: Serie B
+        type: line
+        mark: all
+        data: [2.0, 2.6, 3.4, 4.2, 5.2, 5.9, 6.3, 6.6, 6.8, 6.8, 6.7, 6.5]
+
   # 3+ lines marked at the last point → labels fan out to the right.
   - id: tres_series
     title: Tres series — Perú

@@ -289,11 +289,20 @@ def _finalize_marks(ax, placed: list[_marks.PlacedMark], theme: Theme) -> None:
     for pm in placed:
         if pm.perp is None:
             continue
-        ox, oy = _marks.perp_unit(ax, pm.perp)
+        ox, oy, extremum = _marks.perp_unit(ax, pm.perp)
         bb = pm.artist.get_window_extent(renderer)
-        reach = abs(ox) * (bb.width / 2) + abs(oy) * (bb.height / 2)   # px toward the line
-        dist = reach / dpi72 + _marks.PERP_GAP                          # -> points
-        pm.artist.xyann = (ox * dist, oy * dist)
+        # Use a plain vertical offset at extrema (curve turns away — no overlap
+        # risk) and when the slope is shallow (perpendicular ≈ vertical anyway).
+        # Only on steep monotone sections does the perpendicular actually prevent
+        # the label from sitting on top of the line.
+        if extremum or abs(ox) <= _marks.PERP_SLOPE_THRESHOLD:
+            sign = 1 if pm.perp.side == "above" else -1
+            dist = (bb.height / 2) / dpi72 + _marks.PERP_GAP
+            pm.artist.xyann = (0, sign * dist)
+        else:
+            reach = abs(ox) * (bb.width / 2) + abs(oy) * (bb.height / 2)
+            dist = reach / dpi72 + _marks.PERP_GAP
+            pm.artist.xyann = (ox * dist, oy * dist)
         moved = True
 
     # 1c) right-of-endpoint labels (3+ lines at the last point): if their endpoints
