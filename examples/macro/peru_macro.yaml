@@ -16,8 +16,9 @@
 # DIFFERENCES FROM THE R SCRIPT
 #   - Graph 10 (exchange rate) was a 2-panel facet; here it is two charts
 #     (tcn_nivel + tcn_dep) that the deck places side by side automatically.
-#   - Graph 6 (inflation clipped) is replaced by infla_reciente which starts
-#     in 1993 — econcharts has no y-axis clip option in the current grammar.
+#   - Graph 6 (inflation clipped): infla_reciente uses two blue series
+#     (inflacion_pre + inflacion_post) to leave a blank gap during hyperinflation
+#     instead of clipping the y-axis (not a grammar option).
 #   - Graphs A (PBI per capita) and B (output gap) are commented out;
 #     they require external data / HP-filter computation not in the workbook.
 # =============================================================================
@@ -37,7 +38,7 @@ charts:
   # ---------------------------------------------------------------------------
   - id: lev
     title: "Agregados Macroeconómicos del Perú"
-    subtitle: "Miles de millones de soles de 2007"
+    subtitle: "Millones de soles de 2007"
     source: BCRP
     period: 1950:2025
     series:
@@ -110,17 +111,24 @@ charts:
       - {name: Inflación, type: line, color: blue, data: "excel:macro.xlsx#anual!inflacion"}
 
   # ---------------------------------------------------------------------------
-  # 6 · Inflation — post-hyperinflation view
-  # In R this was the same data with y-axis clipped to [-20, 50].
-  # Starting from 1993 achieves the same visual intent without a ylim override.
+  # 6 · Inflation — post-hyperinflation scale (full x-axis, gap during 1975-1993)
+  # In R this was y-axis clipped to [-20, 50]; econcharts has no ylim spec field.
+  # Two blue series with NaN only at their ENDS produce a blank gap during the
+  # hyperinflation era without PCHIP bridging across it.
+  #   inflacion_pre  = IF(inflacion<=50, inflacion, "")   → finite up to ~1975
+  #   inflacion_post = IF(year>=1993, inflacion, "")      → finite from 1993
+  # The second series carries label: "_nolegend_" (matplotlib convention) so only
+  # one "Inflación" entry appears in the legend.
   # ---------------------------------------------------------------------------
   - id: infla_reciente
     title: "Inflación"
     subtitle: "Porcentaje"
     source: BCRP
-    period: 1993:2025
+    period: start:2025
     series:
-      - {name: Inflación, type: line, color: blue, data: "excel:macro.xlsx#anual!inflacion"}
+      - {name: "Inflación",      type: line, color: blue, data: "excel:macro.xlsx#anual!inflacion_pre"}
+      - {name: "Inflacion_post", type: line, color: blue, label: "_nolegend_",
+         data: "excel:macro.xlsx#anual!inflacion_post"}
     annotations:
       - hline: 0
 
@@ -186,7 +194,6 @@ charts:
   - id: tcn_nivel
     title: "Tipo de Cambio Nominal"
     subtitle: "Soles por dólar"
-    source: BCRP
     size: slides_panel
     period: 1993M12:2026M02
     series:
@@ -205,7 +212,7 @@ charts:
     size: slides_panel
     period: 1993M12:2026M02
     series:
-      - {name: "Depreciación mensual", type: line, color: orange, data: "excel:macro.xlsx#mensual!tcn_var"}
+      - {name: "Depreciación mensual", type: line, color: orange, width: 1.0 , data: "excel:macro.xlsx#mensual!tcn_var"}
     annotations:
       - hline: 0
 

@@ -259,10 +259,26 @@ def test_legend_lists_all_series(example_spec):
     assert _legend_texts(fig) == [s.name for s in example_spec.series]
 
 
-def test_no_source_line_drawn(example_spec):
-    fig = render(example_spec)
+def test_source_footnote_drawn():
+    spec = Spec(**{
+        "title": "Test",
+        "source": "BCRP",
+        "series": [{"name": "A", "type": "line", "data": [1, 2, 3]}],
+        "period": "2024:2026",
+    })
+    fig = render(spec)
     texts = [t.get_text() for t in fig.texts]
-    texts += [t.get_text() for t in fig.axes[0].texts]
+    assert any("Fuente" in t and "BCRP" in t for t in texts)
+
+
+def test_source_absent_no_footnote():
+    spec = Spec(**{
+        "title": "Test",
+        "series": [{"name": "A", "type": "line", "data": [1, 2, 3]}],
+        "period": "2024:2026",
+    })
+    fig = render(spec)
+    texts = [t.get_text() for t in fig.texts]
     assert not any("Fuente" in t for t in texts)
 
 

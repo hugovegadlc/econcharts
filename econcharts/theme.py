@@ -72,6 +72,7 @@ class Theme:
     sizes_mm: dict = field(default_factory=dict)  # name -> (w_mm, h_mm); populated from theme yaml
     num_thousands: str = "."  # thousands separator used by format_number
     num_decimal: str = ","    # decimal separator used by format_number
+    source_prefix: str = "Fuente:"
 
     def style(self):
         """Context manager applying this theme's rcParams (built in memory)."""
@@ -296,6 +297,7 @@ def load_theme(name: str) -> Theme:
         sizes_mm=sizes_mm,
         num_thousands=raw["number_format"]["thousands"],
         num_decimal=raw["number_format"]["decimal"],
+        source_prefix=raw.get("source_prefix", "Fuente:"),
     )
 
 

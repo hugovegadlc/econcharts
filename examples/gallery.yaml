@@ -24,7 +24,6 @@ charts:
   - id: contribuciones
     title: PBI — contribuciones al crecimiento
     subtitle: puntos porcentuales, var. % anual
-    source: BCRP
     period: 2023Q1:2024Q4
     series:
       - {name: Consumo,        type: stacked, data: "excel:datos.xlsx#contribuciones!consumo"}
@@ -35,7 +34,6 @@ charts:
   - id: contribuciones_marcado
     title: PBI — contribuciones al crecimiento
     subtitle: puntos porcentuales, var. % anual
-    source: BCRP
     period: 2023Q1:2024Q4
     series:
       - {name: Consumo,        type: stacked, data: "excel:datos.xlsx#contribuciones!consumo",        mark: all}
@@ -45,7 +43,6 @@ charts:
   - id: credito_moneda
     title: Crédito al sector privado — Perú
     subtitle: por moneda, % del PBI
-    source: BCRP
     period: 2023Q1:2024Q4
     series:
       - {name: Soles,   type: area, data: "excel:datos.xlsx#credito!soles"}
@@ -54,7 +51,6 @@ charts:
   - id: exportaciones_importaciones
     title: Comercio exterior — Perú
     subtitle: var. % anual
-    source: BCRP
     period: 2023Q1:2024Q4
     series:
       - {name: Exportaciones, type: bar, data: "excel:datos.xlsx#comercio!exportaciones"}
@@ -73,7 +69,6 @@ charts:
   - id: inflacion_densa
     title: Inflación — Perú
     subtitle: var. % anual del IPC
-    source: BCRP
     period: 2021Q1:2024Q4
     series:
       - {name: Inflación total, type: line, data: "excel:datos.xlsx#inflacion!total", mark: all}
@@ -82,7 +77,6 @@ charts:
   - id: inflacion_marcada
     title: Inflación — Perú
     subtitle: var. % anual del IPC
-    source: BCRP
     period: 2021Q1:2024Q4
     series:
       - {name: Inflación total,      type: line, data: "excel:datos.xlsx#inflacion!total",      mark: {at: last, marker: true}}
@@ -92,7 +86,6 @@ charts:
   - id: inflacion_meta
     title: Inflación — Perú
     subtitle: var. % anual del IPC
-    source: BCRP
     period: 2021Q1:2024Q4
     series:
       - {name: Inflación total,      type: line, data: "excel:datos.xlsx#inflacion!total"}
@@ -103,7 +96,6 @@ charts:
   - id: inflacion_pe
     title: Inflación — Perú
     subtitle: var. % anual del IPC
-    source: BCRP
     period: 2021Q1:2024Q4
     series:
       - {name: Inflación total,      type: line, data: "excel:datos.xlsx#inflacion!total"}
@@ -121,7 +113,6 @@ charts:
   - id: pbi_contribuciones
     title: PBI — contribuciones al crecimiento
     subtitle: puntos porcentuales; PBI en var. % anual
-    source: BCRP
     period: 2023Q1:2024Q4
     series:
       - {name: Consumo,        type: stacked, data: "excel:datos.xlsx#contribuciones!consumo"}
@@ -131,7 +122,6 @@ charts:
 
   # No `title` — the axes fill the freed space.
   - id: pbi_contribuciones_sin_titulo
-    source: BCRP
     period: 2023Q1:2024Q4
     series:
       - {name: Consumo,        type: stacked, data: "excel:datos.xlsx#contribuciones!consumo"}
@@ -142,7 +132,6 @@ charts:
   - id: pbi_growth
     title: PBI real — Perú
     subtitle: var. % anual
-    source: BCRP
     period: 2022Q1:2024Q4
     series:
       - {name: PBI, type: bar, data: "excel:datos.xlsx#pbi_growth!pbi"}
@@ -151,7 +140,6 @@ charts:
   - id: pbi_growth_anotado
     title: PBI real — Perú
     subtitle: var. % anual
-    source: BCRP
     period: 2022Q1:2024Q4
     series:
       - {name: PBI, type: bar, data: "excel:datos.xlsx#pbi_growth!pbi"}
@@ -162,7 +150,6 @@ charts:
   - id: pbi_growth_marcado
     title: PBI real — Perú
     subtitle: var. % anual
-    source: BCRP
     period: 2022Q1:2024Q4
     series:
       - {name: PBI, type: bar, data: "excel:datos.xlsx#pbi_growth!pbi", mark: all}
@@ -171,7 +158,6 @@ charts:
   - id: pbi_growth_span
     title: PBI real — Perú
     subtitle: var. % anual
-    source: BCRP
     period: 2022Q1:2024Q4
     series:
       - {name: PBI, type: bar, data: "excel:datos.xlsx#pbi_growth!pbi"}
@@ -182,7 +168,6 @@ charts:
   - id: reservas
     title: Reservas internacionales netas — Perú
     subtitle: US$ miles de millones
-    source: BCRP
     period: 2023Q1:2024Q4
     series:
       - {name: RIN, type: area, data: "excel:datos.xlsx#reservas!rin"}
@@ -190,7 +175,6 @@ charts:
   - id: reservas_marcada
     title: Reservas internacionales netas — Perú
     subtitle: US$ miles de millones
-    source: BCRP
     period: 2023Q1:2024Q4
     series:
       - {name: RIN, type: area, data: "excel:datos.xlsx#reservas!rin", mark: all}
@@ -199,7 +183,6 @@ charts:
   - id: reservas_tc
     title: Reservas y tipo de cambio — Perú
     subtitle: niveles de cierre trimestral
-    source: BCRP
     period: 2023Q1:2024Q4
     ylabel: US$ miles de millones
     y2label: S/ por US$
@@ -211,7 +194,6 @@ charts:
   - id: tipo_cambio_diario
     title: Tipo de cambio
     subtitle: PEN/USD, diario
-    source: BCRP
     period: 2024-01-02:2024-04-26
     series:
       - {name: PEN/USD, type: line, data: "excel:datos.xlsx#diario!pen_usd"}

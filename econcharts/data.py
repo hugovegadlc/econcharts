@@ -39,6 +39,16 @@ _ANNUAL = re.compile(r"^(\d{4})$")
 # excel:<file>#<sheet>!<column>  — file may contain spaces/backslashes.
 _EXCEL_REF = re.compile(r"^excel:(?P<file>[^#]+)#(?P<sheet>[^!]+)!(?P<column>.+)$")
 
+_FMT_DECIMAL = re.compile(r"\.([0#]+)")  # matches ".0", ".00", ".0#" etc. in Excel format strings
+
+
+def _parse_fmt_decimals(fmt: str) -> Optional[int]:
+    """Decimal places implied by an Excel number format string (e.g. '0.0' → 1)."""
+    if not fmt or fmt in ("General", "@", ""):
+        return None
+    m = _FMT_DECIMAL.search(fmt)
+    return len(m.group(1)) if m else 0
+
 #: Environment variable holding the root that relative workbook paths resolve against.
 DATA_ROOT_ENV = "ECONCHARTS_DATA_ROOT"
 
@@ -176,6 +186,8 @@ class DataResolver:
         self.data_root = Path(data_root) if data_root else None
         self.period_col = period_col
         self._sheet_cache: dict[tuple[str, str], pd.DataFrame] = {}
+        self._wb_cache: dict[str, object] = {}
+        self.series_decimals: dict[str, Optional[int]] = {}
 
     def resolve_series(self, series: "Series") -> pd.DataFrame:
         data = series.data
@@ -249,7 +261,32 @@ class DataResolver:
         values = pd.to_numeric(df[column], errors="coerce").to_numpy(dtype=float)
         out = pd.DataFrame({"period": periods, "series": name, "value": values})
         out = out[out["period"].notna()].reset_index(drop=True)  # drop unparseable period rows
+        # Capture the column's Excel number format so mark labels respect it.
+        resolved = Path(file)
+        if not resolved.is_absolute() and self.data_root is not None:
+            resolved = self.data_root / resolved
+        self.series_decimals[name] = self._excel_col_decimals(resolved, sheet, column)
         return self._clip_window(out)[LONG_COLUMNS]
+
+    def _excel_col_decimals(self, path: Path, sheet: str, column: str) -> Optional[int]:
+        """Return decimal places from the Excel number format of the first data cell."""
+        try:
+            import openpyxl
+            key = str(path)
+            if key not in self._wb_cache:
+                self._wb_cache[key] = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+            ws = self._wb_cache[key][sheet]
+            headers = {ws.cell(1, c).value: c for c in range(1, ws.max_column + 1)}
+            if column not in headers:
+                return None
+            col_idx = headers[column]
+            for row_idx in range(2, ws.max_row + 1):
+                cell = ws.cell(row_idx, col_idx)
+                if cell.value is not None:
+                    return _parse_fmt_decimals(cell.number_format)
+        except Exception:
+            return None
+        return None
 
     def _read_sheet(self, name: str, file: str, sheet: str) -> pd.DataFrame:
         path = Path(file)

@@ -123,9 +123,9 @@ def test_formatter_adapts_decimals_to_tick_spacing():
 
 def test_format_number_es_pe():
     theme = load_theme("bbva")
-    assert theme.format_number(1234567) == "1.234.567"
+    assert theme.format_number(1234567) == "1 234 567"
     assert theme.format_number(3.75, 2) == "3,75"
-    assert theme.format_number(-1234.5, 1) == "-1.234,5"
+    assert theme.format_number(-1234.5, 1) == "-1 234,5"
 
 
 def test_format_number_respects_theme_separators(tmp_path, monkeypatch):

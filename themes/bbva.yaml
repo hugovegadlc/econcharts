@@ -38,7 +38,7 @@ highlight: lightblue
 
 # --- number formatting: separators for value labels and y-axis ticks. ----------
 number_format:
-  thousands: "."   # es-PE: 1.234.567
+  thousands: " "   # es-PE: 1 234 567 (editado)
   decimal:   ","   # es-PE: 3,75
 
 # --- named export sizes (physical mm): BBVA add-in export presets.
@@ -52,6 +52,8 @@ sizes:
 
 # --- legend placement: below | above (figure-level rows) or an inside corner
 #     (top-left/top-right/bottom-left/bottom-right). A chart may override. -----
+source_prefix: "Fuente:"
+
 legend:
   position: below
 

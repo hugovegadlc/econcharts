@@ -116,7 +116,7 @@ class LineType(ChartType):
 
     def draw(self, ax, series, x, y, periods, color, ctx, state, theme) -> Geom:
         draw_line(ax, x, y, color, series.legend_label, ctx, (0, 1),
-                  LINESTYLES[series.line])
+                  LINESTYLES[series.line], linewidth=series.width)
         return None
 
 
@@ -201,7 +201,7 @@ def _highlight_colors(series, periods, base: str, theme) -> tuple[str, ...] | No
 
 # --- drawing primitives ----------------------------------------------------------
 
-def draw_line(ax, x, y, color, label, ctx, group, linestyle="-") -> None:
+def draw_line(ax, x, y, color, label, ctx, group, linestyle="-", linewidth=None) -> None:
     x, y = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
     span = _finite_span(y)
     if span is None:
@@ -211,7 +211,10 @@ def draw_line(ax, x, y, color, label, ctx, group, linestyle="-") -> None:
     # the ends (assumed no interior gaps), so the line spans [lo, hi], not the full
     # axis. Smoothing runs on that sub-range so the ends aren't extrapolated.
     xs, ys = _smooth(x[lo:hi + 1], y[lo:hi + 1])
-    ax.plot(xs, ys, color=color, label=label, linestyle=linestyle, zorder=Z_LINE)
+    kw = {"color": color, "label": label, "linestyle": linestyle, "zorder": Z_LINE}
+    if linewidth is not None:
+        kw["linewidth"] = linewidth
+    ax.plot(xs, ys, **kw)
 
 
 def draw_area_band(ax, x, base, top, color, label) -> None:

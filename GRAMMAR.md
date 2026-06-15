@@ -23,7 +23,7 @@ with errors naming the offending key.
 |-----|------|-------|
 | `title` | string? | chart title |
 | `subtitle` | string? | below the title |
-| `source` | string? | metadata only — **not drawn** (lives beside the chart on the slide) |
+| `source` | string? | drawn as a small footnote at the bottom left (`"Fuente: BCRP"`); omit to suppress |
 | `period` | string? | the axis frame / window — see **Period** |
 | `theme` | string | default `bbva` |
 | `ylabel` | string? | primary y-axis label |
@@ -47,7 +47,8 @@ with errors naming the offending key.
 | `mark` | map \| shorthand | data-label marks — see **Mark** |
 | `highlight` | map \| shorthand | recolor chosen bars (emphasis); **bar series only** — see **Highlight** |
 | `color` | string? | selects a **theme palette color by name** (not hex) |
-| `line` | `solid`\|`dashed`\|`dotted` | stroke; **line series only**; default `solid` |
+| `line` | `solid`\|`dashed`\|`dotted` | stroke style; **line series only**; default `solid` |
+| `width` | float? | stroke width in points; **line series only**; default = theme rc |
 
 **Combination by `type`** (the type *is* the combine rule): multiple `bar` group
 side-by-side (dodged); multiple `stacked` stack (negatives downward); `area` fill and
@@ -61,6 +62,7 @@ a total line).
 | `marker` | bool | filled dot; **line series only**; default `false` |
 | `value` | bool | show the numeric value as a label; default `true` |
 | `text` | string? | custom text replacing the value; **single point only** |
+| `decimals` | int? | pin decimal places for value labels; default = from Excel cell format, else inferred from data |
 
 Shorthand: `mark: last` or `mark: [2020Q2, 2021Q1]` → `{at: …}`. A line mark needs at
 least one of `marker` / `value` / `text`. `mark: last` on a partial series marks **that

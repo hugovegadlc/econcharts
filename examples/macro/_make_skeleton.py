@@ -63,7 +63,13 @@ make_sheet("anual", "year", range(1900, 2026), {
     "gasto_pub_pct": "100 * (cons_pub + inv_bruta_fija_pub) / pbi",
     "balanza_c_pct": "100 * (export - import) / pbi",
     # charts 5/6 — as-is from BCRP
-    "inflacion":     "as-is from BCRP  (% anual)",
+    "inflacion":      "as-is from BCRP  (% anual)",
+    # chart 6 — split: two blue line segments with a blank gap during hyperinflation
+    #   inflacion_pre  blanks at the END once inflation exceeds 50% (no interior NaN)
+    #   inflacion_post blanks at the START before 1993 (no interior NaN)
+    #   → PCHIP never bridges the gap; the period 1975-1993 is naturally invisible
+    "inflacion_pre":  "=IF(inflacion<=50, inflacion, \"\")  early history; blank once inflation > 50%",
+    "inflacion_post": "=IF(year>=1993, inflacion, \"\")     modern era (1993 onwards)",
     # chart 8 — as-is from BCRP
     "def_fiscal":    "as-is from BCRP  (% PBI; deficit = positive value)",
     # chart C — pending
@@ -140,8 +146,8 @@ lines = [
     ("DIFERENCIAS VS EL SCRIPT R", True),
     ("  Graph 10 (TCN): el grafico de 2 paneles (facet_wrap) se divide en", False),
     ("    tcn_nivel + tcn_dep — econcharts no tiene facets aun.", False),
-    ("  Graph 6 (inflacion recortada): reemplazado por infla_reciente (period 1993:2025)", False),
-    ("    porque econcharts no tiene opcion de ylim en el spec.", False),
+    ("  Graph 6 (inflacion recortada): infla_reciente usa dos series azules (inflacion_pre +", False),
+    ("    inflacion_post) para dejar un hueco visible durante la hiperinflacion.", False),
 ]
 for r, (text, bold) in enumerate(lines, 1):
     cell = ws_n.cell(row=r, column=1, value=text)

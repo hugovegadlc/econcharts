@@ -34,17 +34,33 @@ def _gran_of(period: "pd.Period") -> str:
     return period.freqstr[0]
 
 
+def _gran_start(g: "pd.Period", data_freq: str) -> "pd.Period":
+    """The canonical start of a gran period expressed in data_freq.
+
+    E.g. year 2024 in monthly data → 2024M01. Used as the x-position so that
+    thinned ticks are evenly spaced regardless of where the data window begins.
+    """
+    if _gran_of(g) == data_freq:
+        return g
+    return g.asfreq(data_freq, how="start")
+
+
 def _representatives(periods: list, gran: str) -> list:
-    """One (data_period, gran_period) per distinct granularity-period, in order —
-    the FIRST data point falling in each, so labels anchor near each period's start
-    and snap to a real observation (handles business-day gaps)."""
+    """One (x_period, gran_period) per distinct granularity-period, in order.
+
+    x_period is the START of the gran bucket expressed in the data's own freq
+    (e.g. 2024M01 for year 2024 in monthly data). This makes tick spacing
+    uniform after thinning — positioning by the first observed data point
+    instead would shift the first tick when the window starts mid-period.
+    """
     out, seen = [], set()
+    data_freq = _gran_of(periods[0]) if periods else gran
     for p in periods:
         g = p if _gran_of(p) == gran else p.asfreq(gran)
         key = str(g)
         if key not in seen:
             seen.add(key)
-            out.append((p, g))
+            out.append((_gran_start(g, data_freq), g))
     return out
 
 
@@ -79,6 +95,8 @@ def plan_ticks(periods, width_in: float, theme: "Theme",
     ladder = _LADDER.get(_gran_of(periods[0]), [_gran_of(periods[0])])
     last = ladder[-1]
 
+    frame_start = periods[0]
+
     for gran in ladder:
         reps = _representatives(periods, gran)
         step = max(1, -(-len(reps) // max_labels))  # ceil division
@@ -86,6 +104,9 @@ def plan_ticks(periods, width_in: float, theme: "Theme",
         # or it's the coarsest rung (then thin as far as needed).
         if step <= _THIN_MAX_STEP or gran == last:
             reps = reps[::step]
+            # Drop any tick whose canonical x-position falls before the frame —
+            # this happens when the window starts mid-period (e.g. 1993M12 with
+            # yearly ticks: 1993Y maps to 1993M01 which is before the frame).
             return [(rp, theme.date_label(gp, gran, _style_for(theme, gran, style)))
-                    for rp, gp in reps]
+                    for rp, gp in reps if rp >= frame_start]
     return []  # unreachable: the coarsest rung always returns

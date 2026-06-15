@@ -134,9 +134,10 @@ class MarkSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     at: Union[str, list[str]]
-    marker: bool = False  # filled dot (line series only)
-    value: bool = True    # show the numeric value as a text label
-    text: Optional[str] = None  # custom text that replaces the value at a single point
+    marker: bool = False            # filled dot (line series only)
+    value: bool = True              # show the numeric value as a text label
+    text: Optional[str] = None      # custom text that replaces the value at a single point
+    decimals: Optional[int] = None  # override decimal places; default = from Excel format or inferred
 
     _coerce_at = field_validator("at", mode="before")(_coerce_token_or_list)
 
@@ -171,9 +172,11 @@ class Series(BaseModel):
     highlight: Optional[HighlightSpec] = None
     # Form overrides. `color` pins the series to a theme palette color by NAME (not
     # a raw hex — validated against the theme at render); `line` switches the stroke
-    # (line series only). Both default to the theme's automatic choice.
+    # style; `width` overrides the stroke width in points. All three are optional —
+    # omitted, the theme's automatic choices apply.
     color: Optional[str] = None
     line: LineStyle = "solid"
+    width: Optional[float] = None
 
     @property
     def legend_label(self) -> str:

@@ -47,11 +47,11 @@ ship/              # frozen-exe workstream: econcharts.spec (PyInstaller), build
 `bbva source/` holds the original add-in (`*.xlam`) — **never commit it** (gitignored).
 
 ## The spec
-The full grammar lives in **GRAMMAR.md** — consult it before writing or validating any spec. Essentials: `type` is required per series and is also the combination rule (bars dodge, stacked stack ±, areas fill+stack, lines overlay on top); `mark` is a **per-series field** (`mark: last`, `mark: {at, marker, value, text}`), *not* an annotation; annotations today are exactly `hline` / `vline` / `span` / `band`. Canonical combo (stacked contributions + total line):
+The full grammar lives in **GRAMMAR.md** — consult it before writing or validating any spec. Essentials: `type` is required per series and is also the combination rule (bars dodge, stacked stack ±, areas fill+stack, lines overlay on top); `mark` is a **per-series field** (`mark: last`, `mark: {at, marker, value, text, decimals?}`), *not* an annotation; annotations today are exactly `hline` / `vline` / `span` / `band`. Canonical combo (stacked contributions + total line):
 ```yaml
 title: PBI real — contribuciones al crecimiento
 subtitle: var. % anual, puntos porcentuales
-source: BCRP            # metadata only — not drawn (lives beside the chart)
+source: BCRP            # drawn as footnote bottom-left: "Fuente: BCRP"
 period: 2018Q1:end
 series:
   - {name: Consumo,     data: "excel:pbi.xlsx#trim!c_consumo",   type: stacked}

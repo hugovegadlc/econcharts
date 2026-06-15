@@ -100,7 +100,7 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
     (defaults to the ECONCHARTS_DATA_ROOT env var, else the current directory).
     """
     theme = load_theme(spec.theme)
-    long_df, window = _resolve_framed(spec, data_root)
+    long_df, window, series_decimals = _resolve_framed(spec, data_root)
 
     # Validate spec.style overrides before any drawing — a bad rcParam key or
     # value surfaces here as a RenderError, not a cryptic matplotlib traceback.
@@ -116,8 +116,9 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         # constrained layout fits content (title, ticks, legend) by resizing the
         # AXES inside a fixed-size figure — the figure never grows to fit content.
         fig, ax = plt.subplots(figsize=theme.figsize(size), layout="constrained")
+        fig._econ_rc = rc  # carried into save() so font rcParams stay active at savefig time
         ax2 = ax.twinx() if any(s.axis == "secondary" for s in spec.series) else None
-        placed, placed2 = _draw_series(ax, ax2, spec, long_df, theme)
+        placed, placed2 = _draw_series(ax, ax2, spec, long_df, theme, series_decimals)
         has_bars = any(s.type in ("bar", "stacked") for s in spec.series)
         # vlines sit BETWEEN bars (period boundary) on bar/stacked charts, but AT
         # the data point (midpoint) on line/area charts; span edges always snap to
@@ -134,6 +135,7 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         if ax2 is not None:
             _apply_secondary_axis(ax2, spec, theme)
         _apply_titles(ax, spec, theme)
+        _apply_source(fig, spec, theme)
         _apply_legend(fig, ax, ax2, spec, theme)
         # marks (dots/value labels): hide stacked labels that don't fit their
         # segment, then grow the axis limits so edge labels aren't clipped.
@@ -150,7 +152,11 @@ def save(fig: Figure, out: Union[str, Path], backend: Optional[str] = None) -> P
     if backend not in _BACKENDS:
         raise RenderError(f"unknown backend {backend!r}; choose from {sorted(_BACKENDS)}")
     out.parent.mkdir(parents=True, exist_ok=True)
-    with plt.rc_context(_BACKEND_RC.get(backend, {})):
+    # Re-apply the theme rc (font.family, font.sans-serif, etc.) at save time:
+    # text rendering is lazy and reads rcParams at savefig(), not at draw time,
+    # so without this the font reverts to matplotlib's default (DejaVu Sans).
+    theme_rc = getattr(fig, "_econ_rc", {})
+    with plt.rc_context({**theme_rc, **_BACKEND_RC.get(backend, {})}):
         fig.savefig(out, format=backend, **_BACKENDS[backend])
     return out
 
@@ -186,12 +192,13 @@ def _resolve_framed(spec: Spec, data_root):
     frames = [natural[s.name] if s.name in natural else resolver.resolve_series(s)
               for s in spec.series]
     long_df = pd.concat(frames, ignore_index=True)
-    return clip_to_window(long_df, window), window
+    return clip_to_window(long_df, window), window, resolver.series_decimals
 
 
 # --- drawing -----------------------------------------------------------------
 
-def _draw_series(ax, ax2, spec: Spec, long_df: pd.DataFrame, theme: Theme):
+def _draw_series(ax, ax2, spec: Spec, long_df: pd.DataFrame, theme: Theme,
+                 series_decimals: dict):
     """Route each series to its axis (primary or secondary) and draw the group.
 
     Stacking/grouping accumulators are independent per axis; the palette color is
@@ -201,16 +208,17 @@ def _draw_series(ax, ax2, spec: Spec, long_df: pd.DataFrame, theme: Theme):
     ctx = _build_context(long_df)
     indexed = list(enumerate(spec.series))
     placed = _draw_group(ax, [(i, s) for i, s in indexed if s.axis == "primary"],
-                         long_df, theme, ctx)
+                         long_df, theme, ctx, series_decimals)
     placed2: list = []
     if ax2 is not None:
         placed2 = _draw_group(ax2, [(i, s) for i, s in indexed if s.axis == "secondary"],
-                              long_df, theme, ctx)
+                              long_df, theme, ctx, series_decimals)
     return placed, placed2
 
 
 def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
-                ctx: charttypes.RenderContext) -> list[_marks.PlacedMark]:
+                ctx: charttypes.RenderContext,
+                series_decimals: dict) -> list[_marks.PlacedMark]:
     """Draw a set of (global_index, series) onto one Axes, with its own stacking.
 
     All type-specific behaviour (stacking, dodging, mark placement) lives on the
@@ -219,7 +227,7 @@ def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
     placed on this axes (the records `_finalize_marks` post-processes).
     """
     state = charttypes.GroupState(bar_count=sum(1 for _, s in items if s.type == "bar"))
-    mark_decimals = _mark_decimals(items, long_df)  # consistent decimals across the axis
+    mark_decimals = _mark_decimals(items, long_df, series_decimals)
     line_marks: list = []   # collected so line label sides can be chosen across series
     placed: list[_marks.PlacedMark] = []
     for i, s in items:
@@ -354,14 +362,32 @@ def _spread_right_labels(ax, renderer, theme: Theme,
     return True
 
 
-def _mark_decimals(items, long_df: pd.DataFrame) -> int:
-    """One decimal count for every value label on an axis (the max any one needs)."""
-    values: list = []
+def _mark_decimals(items, long_df: pd.DataFrame, series_decimals: dict) -> int:
+    """One decimal count for every value label on an axis.
+
+    Priority: spec `mark.decimals` (explicit override) → Excel cell number format
+    (read by the resolver) → inferred from the marked values themselves.
+    The max across all marked series is used so all labels share the same precision.
+    """
+    explicit: list[int] = []
+    from_excel: list[int] = []
+    values: list[float] = []
     for _, s in items:
         if s.mark is None:
             continue
+        if s.mark.decimals is not None:
+            explicit.append(s.mark.decimals)
+            continue
+        excel_d = series_decimals.get(s.name)
+        if excel_d is not None:
+            from_excel.append(excel_d)
+            continue
         sub = long_df[long_df["series"] == s.name].sort_values("period")
         values += _marks.marked_values(s, list(sub["period"]), sub["value"].to_numpy(dtype=float))
+    if explicit:
+        return max(explicit)
+    if from_excel:
+        return max(from_excel)
     return _marks.decimals_for(values)
 
 
@@ -466,10 +492,20 @@ def _set_period_ticks(ax, periods: list[pd.Period], *, boundary_marks: bool,
     ax.tick_params(axis="x", which="minor", length=0)
 
 
+def _apply_source(fig, spec: Spec, theme: Theme) -> None:
+    if not spec.source:
+        return
+    # supxlabel participates in constrained layout (like suptitle does above):
+    # the axes shrink to make room when source is present, expand when absent.
+    fig.supxlabel(
+        f"{theme.source_prefix} {spec.source}",
+        x=0.01, ha="left",
+        fontsize=6,
+        color=theme.colors.get("grey", "#7F7F7F"),
+    )
+
+
 def _apply_titles(ax, spec: Spec, theme: Theme) -> None:
-    # `source` is kept as spec metadata but intentionally NOT drawn: the BBVA
-    # chart formatter never renders a source on the chart (it lives on the
-    # slide/worksheet beside it). See spec.Spec.source.
     # title and subtitle are both optional. When absent (None or blank) nothing
     # is drawn, so constrained layout lets the axes fill the freed space.
     # wrap=True lets a long title/subtitle flow onto extra lines instead of

@@ -198,7 +198,7 @@ charts:
   <table class="keys">
     <tr><td><code>title</code></td><td>Chart title. Optional.</td></tr>
     <tr><td><code>subtitle</code></td><td>Smaller line under the title. Optional.</td></tr>
-    <tr><td><code>source</code></td><td>Kept as metadata but <em>not drawn</em> — it belongs on the slide beside the chart.</td></tr>
+    <tr><td><code>source</code></td><td>Drawn as a small footnote at the bottom left of the chart (<code>"Fuente: BCRP"</code>). The prefix comes from the theme (<code>source_prefix</code>). Omit to suppress.</td></tr>
     <tr><td><code>period</code></td><td>The window the x-axis spans (see <a href="#spec-period">Period</a>).</td></tr>
     <tr><td><code>theme</code></td><td>House style. Default <code>bbva</code>.</td></tr>
     <tr><td><code>ylabel</code>, <code>y2label</code></td><td>Axis labels (left / right). Optional.</td></tr>
@@ -218,6 +218,7 @@ charts:
     <tr><td><code>label</code></td><td>Overrides the legend text (default = <code>name</code>).</td></tr>
     <tr><td><code>color</code></td><td>Pin a palette colour by name (see <a href="#vocab">vocabularies</a>).</td></tr>
     <tr><td><code>line</code></td><td><code>solid</code> (default) · <code>dashed</code> · <code>dotted</code>. Line series only.</td></tr>
+    <tr><td><code>width</code></td><td>Stroke width in points. Line series only. Omit to use the theme default.</td></tr>
     <tr><td><code>mark</code></td><td>Data labels / dots (see <a href="#spec-mark">Marks</a>).</td></tr>
     <tr><td><code>highlight</code></td><td>Recolour chosen bars for emphasis. Bar series only (see <a href="#spec-highlight">Highlight</a>).</td></tr>
   </table>
@@ -237,6 +238,7 @@ charts:
     <tr><td><code>value</code></td><td>Show the numeric value as a label. Default <code>true</code>.</td></tr>
     <tr><td><code>marker</code></td><td>Draw a dot at the point. Line series only. Default <code>false</code>.</td></tr>
     <tr><td><code>text</code></td><td>Custom text replacing the value (single point only).</td></tr>
+    <tr><td><code>decimals</code></td><td>Pin the number of decimal places shown on value labels. Default: reads the Excel column's cell format, or infers from the data.</td></tr>
   </table>
   <pre><code>series:
   - {name: PBI, type: line, data: "…", mark: all}                        # label every point

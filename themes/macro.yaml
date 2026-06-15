@@ -31,7 +31,7 @@ highlight: orange
 
 # --- number formatting: separators for value labels and y-axis ticks. ----------
 number_format:
-  thousands: "."   # es-PE: 1.234.567
+  thousands: " "   # es-PE: 1 234 567 (editado)
   decimal:   ","   # es-PE: 3,75
 
 # --- named export sizes (physical mm): override the global BBVA presets.
@@ -44,6 +44,8 @@ sizes:
 
 # --- legend placement: the R theme puts legends INSIDE the panel, top-left
 #     (theme_hugo legend_position = c(0.15, 0.88)). A chart may override. ------
+source_prefix: "Fuente:"
+
 legend:
   position: top-left
 
