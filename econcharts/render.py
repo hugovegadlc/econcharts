@@ -46,7 +46,7 @@ from econcharts.theme import (
 _BACKENDS = {
     "png": dict(dpi=300, transparent=True),
     "pdf": dict(),
-    "svg": dict(),
+    "svg": dict(transparent=True),
 }
 
 # rcParams applied only during savefig (via rc_context) — backend-specific

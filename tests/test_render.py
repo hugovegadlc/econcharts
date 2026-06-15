@@ -761,14 +761,22 @@ def test_save_all_backends_and_sizes(example_spec, tmp_path, backend, size):
     assert out.exists() and out.stat().st_size > 0
 
 
-def test_png_background_is_transparent(example_spec, tmp_path):
-    """transparent=True: the figure background (top-left corner) has alpha=0."""
+@pytest.mark.parametrize("backend", ["png", "svg"])
+def test_background_is_transparent(example_spec, tmp_path, backend):
+    """transparent=True: the figure background has alpha=0 for raster (PNG) and
+    no background rect for SVG."""
     from PIL import Image
     import numpy as np
 
-    out = save(render(example_spec), tmp_path / "chart.png")
-    arr = np.array(Image.open(out).convert("RGBA"))
-    assert arr[0, 0, 3] == 0   # top-left corner is fully transparent
+    out = save(render(example_spec), tmp_path / f"chart.{backend}")
+    if backend == "png":
+        arr = np.array(Image.open(out).convert("RGBA"))
+        assert arr[0, 0, 3] == 0   # top-left corner is fully transparent
+    else:
+        svg = out.read_text(encoding="utf-8")
+        # matplotlib writes a white rect as the figure background when not
+        # transparent; with transparent=True that rect is absent or has opacity 0.
+        assert 'opacity:1;fill:#ffffff' not in svg
 
 
 def test_svg_physical_size_matches_named_preset(example_spec, tmp_path):
