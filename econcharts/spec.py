@@ -260,6 +260,9 @@ class Spec(BaseModel):
     # default — for charts where the default corner collides with data. Validated
     # at render against theme.LEGEND_POSITIONS (same pattern as `color`).
     legend: Optional[str] = None
+    # Tick rotation by NAME (e.g. "rotated"), overriding the theme's default.
+    # Valid names are those declared in the theme's `date_labels.rotations` map.
+    tick_rotation: Optional[str] = None
 
     _coerce_period = field_validator("period", mode="before")(_coerce_period_token)
 

@@ -70,6 +70,8 @@ class Theme:
     highlight: Optional[str] = None                   # default bar-highlight hex
     legend_position: str = "below"                    # one of LEGEND_POSITIONS
     legend_background: Optional[str] = None           # hex or None (transparent)
+    tick_rotation: int = 0                            # x-axis label rotation in degrees
+    tick_rotations: dict[str, int] = field(default_factory=dict)  # name -> degrees
     sizes_mm: dict = field(default_factory=dict)  # name -> (w_mm, h_mm); populated from theme yaml
     num_thousands: str = "."  # thousands separator used by format_number
     num_decimal: str = ","    # decimal separator used by format_number
@@ -287,6 +289,16 @@ def load_theme(name: str) -> Theme:
     sizes_mm = {k: tuple(v) for k, v in raw.get("sizes", {}).items()}
     _validate_theme(name, raw, sizes_mm)
 
+    dl_raw = raw.get("date_labels", {})
+    tick_rotations = dl_raw.get("rotations", {"default": 0, "rotated": 270})
+    tick_rotation_name = dl_raw.get("rotation", "default")
+    if tick_rotation_name not in tick_rotations:
+        raise ThemeError(
+            f"theme {name!r}: date_labels.rotation {tick_rotation_name!r} "
+            f"not in rotations: {list(tick_rotations)}"
+        )
+    tick_rotation = tick_rotations[tick_rotation_name]
+
     ann = raw.get("annotations", {})
     return Theme(
         name=name,
@@ -303,6 +315,8 @@ def load_theme(name: str) -> Theme:
         highlight=colors[highlight_name] if highlight_name else None,
         legend_position=legend_position,
         legend_background=legend_background,
+        tick_rotation=tick_rotation,
+        tick_rotations=tick_rotations,
         sizes_mm=sizes_mm,
         num_thousands=raw["number_format"]["thousands"],
         num_decimal=raw["number_format"]["decimal"],

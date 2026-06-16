@@ -14,6 +14,7 @@ keeps quarters/months, a long one switches to years — both *and* skipping tick
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -76,22 +77,30 @@ def _style_for(theme: "Theme", gran: str, preferred: Optional[str]) -> Optional[
 _THIN_MAX_STEP = 2
 
 
-def max_labels_for(width_in: float) -> int:
-    """How many date labels fit the axis width."""
-    return max(2, round(width_in * 1.8))
+def max_labels_for(width_in: float, rotation: int = 0) -> int:
+    """How many date labels fit the axis width.
+
+    Rotated labels have a smaller horizontal footprint, so more fit.
+    At 270° (reading upward) the footprint is just the font height — cap
+    the scaling at cos(80°) ≈ 0.17 to avoid exploding the count.
+    """
+    scale = 1.0 / max(0.17, math.cos(math.radians(abs(rotation) % 180)))
+    return max(2, round(width_in * 1.8 * scale))
 
 
 def plan_ticks(periods, width_in: float, theme: "Theme",
-               style: Optional[str] = None) -> list:
+               style: Optional[str] = None,
+               rotation: int = 0) -> list:
     """Return [(period, label_text), …] — the periods to label and their text.
 
     `periods` is the frame's periods (sorted, one freq). `style` is a chart's
-    preferred label style, honoured per granularity where defined.
+    preferred label style, honoured per granularity where defined. `rotation`
+    is the label rotation in degrees (0 = horizontal, 270 = reading upward).
     """
     periods = sorted(periods)
     if not periods:
         return []
-    max_labels = max_labels_for(width_in)
+    max_labels = max_labels_for(width_in, rotation)
     ladder = _LADDER.get(_gran_of(periods[0]), [_gran_of(periods[0])])
     last = ladder[-1]
 

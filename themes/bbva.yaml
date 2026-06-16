@@ -74,6 +74,10 @@ annotations:
 #     by NAME. Patterns use tokens {yyyy} {yy} {q} {mmm} {d}; for Q, {mmm} is the
 #     quarter's CLOSING month. es-PE month abbrevs live in theme.py. ----------------
 date_labels:
+  rotation: default          # default rotation option; a chart may override with `tick_rotation`
+  rotations:
+    default: 0               # horizontal labels
+    rotated: 90              # vertical, reading upward
   D: {options: {plain: "{d}-{mmm}", dotted: "{d}-{mmm}."},   default: plain}   # 15-jul / 15-jul.
   M: {options: {plain: "{mmm}-{yy}", dotted: "{mmm}.-{yy}"}, default: plain}   # mar-24 / mar.-24
   Q: {options: {quarter: "{q}T{yy}", month: "{mmm}-{yy}"},   default: month}   # mar-24 / 1T24

@@ -213,6 +213,36 @@ charts:
         mark: all
         data: [2.0, 2.6, 3.4, 4.2, 5.2, 5.9, 6.3, 6.6, 6.8, 6.8, 6.7, 6.5]
 
+  # ── tick_rotation showcase ───────────────────────────────────────────────
+  # `tick_rotation: rotated` turns labels 90° so more fit on a long span.
+  # All three use `period: start:end` to expose the full data range.
+
+  - id: rotacion_linea
+    title: Inflación — Perú (eje rotado)
+    subtitle: var. % anual del IPC
+    period: start:end
+    tick_rotation: rotated
+    series:
+      - {name: Inflación total,      type: line, data: "excel:datos.xlsx#inflacion!total"}
+      - {name: Inflación subyacente, type: line, data: "excel:datos.xlsx#inflacion!subyacente"}
+
+  - id: rotacion_area
+    title: Reservas internacionales netas — Perú (eje rotado)
+    subtitle: US$ miles de millones
+    period: start:end
+    tick_rotation: rotated
+    series:
+      - {name: RIN, type: area, data: "excel:datos.xlsx#reservas!rin"}
+
+  - id: rotacion_barras
+    title: PBI real — Perú (eje rotado)
+    subtitle: var. % anual
+    period: start:end
+    tick_rotation: rotated
+    series:
+      - {name: PBI, type: bar, data: "excel:datos.xlsx#pbi_growth!pbi"}
+
+  # ── 3+ lines marked at the last point → labels fan out to the right ──────
   # 3+ lines marked at the last point → labels fan out to the right.
   - id: tres_series
     title: Tres series — Perú

@@ -131,6 +131,7 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         _annotations.draw_annotations(ax, spec, coords, theme)
         _validate_legend(spec)
         _validate_date_label(spec, theme)
+        _validate_tick_rotation(spec, theme)
         _apply_axes(ax, spec, long_df, has_bars, window, theme)
         if ax2 is not None:
             _apply_secondary_axis(ax2, spec, theme)
@@ -422,10 +423,21 @@ def _validate_date_label(spec: Spec, theme: Theme) -> None:
     applied per-granularity where valid). Catch typos early with the valid choices."""
     if spec.date_label is None:
         return
-    valid = {s for g in theme.date_labels.values() for s in g.get("options", {})}
+    valid = {s for g in theme.date_labels.values()
+             if isinstance(g, dict) for s in g.get("options", {})}
     if spec.date_label not in valid:
         raise RenderError(
             f"unknown date_label {spec.date_label!r}; choose from: {', '.join(sorted(valid))}"
+        )
+
+
+def _validate_tick_rotation(spec: Spec, theme: Theme) -> None:
+    if spec.tick_rotation is None:
+        return
+    if spec.tick_rotation not in theme.tick_rotations:
+        choices = ", ".join(sorted(theme.tick_rotations))
+        raise RenderError(
+            f"unknown tick_rotation {spec.tick_rotation!r}; choose from: {choices}"
         )
 
 
@@ -435,7 +447,10 @@ def _apply_axes(ax, spec: Spec, long_df: pd.DataFrame, has_bars: bool, window,
     # frame), else the data's own range. Ticks and x-limits both come from the frame
     # so a chart shows its whole window even where a series has no data.
     frame = list(window) if window is not None else sorted(long_df["period"].unique())
-    _set_period_ticks(ax, frame, boundary_marks=has_bars, theme=theme, style=spec.date_label)
+    rotation_name = spec.tick_rotation if spec.tick_rotation is not None else None
+    rotation = theme.tick_rotations.get(rotation_name, theme.tick_rotation) if rotation_name else theme.tick_rotation
+    _set_period_ticks(ax, frame, boundary_marks=has_bars, theme=theme,
+                      style=spec.date_label, rotation=rotation)
     ax.set_axisbelow(True)  # grid behind all artists (bars, areas, lines)
     ax.yaxis.set_major_formatter(EsPeNumber(theme))
     if window is not None and frame:
@@ -466,7 +481,7 @@ def _apply_secondary_axis(ax2, spec: Spec, theme: Theme) -> None:
 
 
 def _set_period_ticks(ax, periods: list[pd.Period], *, boundary_marks: bool,
-                      theme: Theme, style=None) -> None:
+                      theme: Theme, style=None, rotation: int = 0) -> None:
     """Place x ticks. `timeaxis.plan_ticks` chooses the display granularity + which
     periods carry labels (adaptive to width); `style` is the chart's label-style pick.
 
@@ -480,13 +495,15 @@ def _set_period_ticks(ax, periods: list[pd.Period], *, boundary_marks: bool,
     if not periods:
         return
     width_in = ax.figure.get_size_inches()[0]
-    ticks = timeaxis.plan_ticks(periods, width_in, theme, style)  # [(period, text)]
+    ticks = timeaxis.plan_ticks(periods, width_in, theme, style, rotation)  # [(period, text)]
     label_x = _periods_to_x([p for p, _ in ticks])
     labels = [t for _, t in ticks]
 
+    ha = "center"
+
     if not boundary_marks:
         ax.set_xticks(label_x)
-        ax.set_xticklabels(labels)
+        ax.set_xticklabels(labels, rotation=rotation, ha=ha)
         return
 
     # Bars: separator marks on EVERY bar boundary (major, unlabeled) — each
@@ -497,7 +514,7 @@ def _set_period_ticks(ax, periods: list[pd.Period], *, boundary_marks: bool,
     ax.set_xticklabels([""] * len(boundaries))
     # Labels centered under the chosen bars (minor ticks, no marks).
     ax.set_xticks(label_x, minor=True)
-    ax.set_xticklabels(labels, minor=True)
+    ax.set_xticklabels(labels, minor=True, rotation=rotation, ha=ha)
     ax.tick_params(axis="x", which="minor", length=0)
 
 
