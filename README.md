@@ -2,7 +2,7 @@
 
 Publication-quality economic charts from a minimal, substance-only YAML spec. You
 write the **content** — title, data, per-series chart type, domain annotations — and
-the BBVA house style is pre-encoded, so every chart comes out consistent. A narrow DSL
+then any particular style can be pre-encoded, so every chart comes out consistent. A narrow DSL
 for macro time-series charts, deliberately **not** a general grammar of graphics.
 
 ```yaml

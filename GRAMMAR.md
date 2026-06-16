@@ -75,7 +75,7 @@ series'** last real point (≠ the sample end).
 | `color` | string? | theme palette color by name; default = the theme's own `highlight` color |
 
 Shorthand: `highlight: last` or `highlight: [2026, 2027]` → `{at: …}`. **Bar series
-only** — the BBVA pattern of emphasizing the forecast years or the latest bar within a
+only** — a common pattern of emphasizing the forecast years or the latest bar within a
 (typically single-series) bar chart. Non-highlighted bars keep the series color; a
 value-label mark on a highlighted bar takes its bar's color.
 
