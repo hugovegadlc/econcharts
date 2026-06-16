@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$v = (Select-String 'version = \"(.+)\"' pyproject.toml).Matches[0].Groups[1].Value; if (!$v) { exit 0 }; $tag = \"v$v\"; if (git tag -l $tag) { exit 0 }; git tag $tag; git -c http.sslBackend=schannel push origin $tag; gh release create $tag --title $tag --generate-notes",
+            "timeout": 30,
+            "statusMessage": "Checking version tag..."
+          }
+        ]
+      }
+    ]
+  }
+}
