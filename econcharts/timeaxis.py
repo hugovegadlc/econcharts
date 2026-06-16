@@ -103,7 +103,7 @@ def plan_ticks(periods, width_in: float, theme: "Theme",
         # Use this granularity if it fits, only mildly overflows (thin every-other),
         # or it's the coarsest rung (then thin as far as needed).
         if step <= _THIN_MAX_STEP or gran == last:
-            reps = reps[::step]
+            reps = list(reversed(reps[::-step]))
             # Drop any tick whose canonical x-position falls before the frame —
             # this happens when the window starts mid-period (e.g. 1993M12 with
             # yearly ticks: 1993Y maps to 1993M01 which is before the frame).
