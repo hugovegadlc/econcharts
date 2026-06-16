@@ -443,9 +443,10 @@ charts:
   shared and still work.</p>
 
   <h3>Output names</h3>
-  <p>Each chart becomes <code>&lt;id&gt;_&lt;date&gt;.png</code> — the <code>id</code> you gave it plus the
-  render date, e.g. <code>inflacion_20260611.png</code>. Re-running on the same day refreshes them;
-  it asks once before overwriting.</p>
+  <p>Each chart becomes <code>&lt;id&gt;_&lt;date&gt;.&lt;ext&gt;</code> — the <code>id</code> you gave it, the
+  render date, and the extension of the chosen backend (<code>png</code>, <code>svg</code>, or
+  <code>pdf</code>; default <code>png</code>), e.g. <code>inflacion_20260611.png</code>.
+  Re-running on the same day refreshes them; it asks once before overwriting.</p>
 
   <h3>Running</h3>
   <pre><code>econcharts build batch.yaml                       # all charts
