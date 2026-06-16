@@ -66,7 +66,7 @@ pytest --mpl                                # run the test suite (with golden im
 ## Pipeline
 
 ```
-YAML spec → pydantic validate → resolve (data refs + frame) → matplotlib render → png | pptx
+YAML spec → pydantic validate → resolve (data refs + frame) → matplotlib render → png | svg | pdf | pptx
 ```
 
 | Module | Responsibility |
@@ -84,6 +84,12 @@ YAML spec → pydantic validate → resolve (data refs + frame) → matplotlib r
 
 ## Status
 
-v0.1.0 — the core pipeline is complete and tested (`pytest`, with `pytest-mpl` golden
-images). Backlog: SVG/PDF backends, a domain registry (recessions / targets), Google
-Sheets & database resolvers, and an optional natural-language authoring layer.
+v0.4.2 — core pipeline feature-complete and tested (244 tests, `pytest` + `pytest-mpl`
+golden images). Two themes: `bbva` (BBVA house style) and `macro` (R/ggplot2 house
+style). SVG and PDF backends complete (selectable text, embedded fonts, transparent
+backgrounds). Curvature-aware line mark label placement. Ships as a frozen Windows
+executable (no install, no admin rights).
+
+Backlog: domain registry (recessions / targets / event marks), Google Sheets & database
+resolvers, `fan` chart type (forecast bands), slim bundle (drop scipy), and an optional
+natural-language authoring layer.
