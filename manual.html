@@ -202,6 +202,7 @@ charts:
     <tr><td><code>theme</code></td><td>House style. Default <code>bbva</code>.</td></tr>
     <tr><td><code>ylabel</code>, <code>y2label</code></td><td>Axis labels (left / right). Optional.</td></tr>
     <tr><td><code>date_label</code></td><td>Pick a date-label style by name (see <a href="#vocab">vocabularies</a>).</td></tr>
+    <tr><td><code>tick_rotation</code></td><td>Rotate x-axis labels by theme-named angle (<code>default</code> = horizontal, <code>rotated</code> = 90°). More labels fit when rotated.</td></tr>
     <tr><td><code>series</code></td><td><strong>Required.</strong> One or more series — see below.</td></tr>
     <tr><td><code>annotations</code></td><td>Reference lines, bands, shaded periods (see <a href="#spec-annotations">Annotations</a>).</td></tr>
     <tr><td><code>style</code></td><td>Escape hatch: a map of raw <a href="#style-escape">matplotlib rcParam overrides</a>. Rarely needed.</td></tr>
@@ -354,6 +355,16 @@ charts:
     <tr><td>Quarter</td><td><code>month</code> → mar-24 <em>(default)</em> &nbsp;·&nbsp; <code>quarter</code> → 1T24</td></tr>
     <tr><td>Year</td><td><code>full</code> → 2024</td></tr>
   </table>
+
+  <h3>Tick rotation · <code>tick_rotation</code></h3>
+  <p>The theme defines named rotation options; <code>tick_rotation</code> selects one per chart.
+  Rotated labels have a smaller horizontal footprint, so the algorithm fits more of them
+  on the same axis width — useful for long spans or dense monthly data.</p>
+  <table class="keys">
+    <tr><td><code>default</code></td><td>Horizontal labels (0°) — the built-in default for both themes.</td></tr>
+    <tr><td><code>rotated</code></td><td>Vertical labels reading upward (90°).</td></tr>
+  </table>
+  <pre><code>tick_rotation: rotated   # vertical labels, more fit on a long span</code></pre>
 
   <h3>Legend position · <code>legend</code></h3>
   <p>Where the legend is drawn. The theme owns the default; override per chart with

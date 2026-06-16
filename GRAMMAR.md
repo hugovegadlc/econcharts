@@ -29,6 +29,7 @@ with errors naming the offending key.
 | `ylabel` | string? | primary y-axis label |
 | `y2label` | string? | secondary y-axis label |
 | `date_label` | string? | selects a theme date-label style by name — see **Date labels** |
+| `tick_rotation` | string? | x-axis label rotation by name, overriding the theme's default — see vocabularies |
 | `legend` | string? | legend position by name, overriding the theme's default — see vocabularies |
 | `series` | list | **required**, ≥1 — see **Series** |
 | `annotations` | list | optional — see **Annotations** |
@@ -135,6 +136,10 @@ What names a spec may select (the theme owns the values + the default):
   D `plain`(15-jul)/`dotted`(15-jul.) · M `plain`(mar-24)/`dotted`(mar.-24) ·
   Q `month`(mar-24, **default**)/`quarter`(1T24) · Y `full`(2024). The axis chooses the
   granularity adaptively (finest that fits the width; daily→month→quarter→year).
+- **`tick_rotation`**: `default` (0°, horizontal) · `rotated` (90°, reading upward).
+  The theme owns the default (both built-in themes default to `default`). Rotated labels
+  have a smaller horizontal footprint; the tick-count algorithm scales accordingly so
+  more labels fit on the same axis width. Override per chart with `tick_rotation: rotated`.
 - **`legend` position**: `below` `above` `top-left` `top-right` `bottom-left`
   `bottom-right`. The theme owns the default (`bbva`: `below`; `macro`: `top-left`).
   Override per chart with `legend: top-left`. `below`/`above` are figure-level rows;
