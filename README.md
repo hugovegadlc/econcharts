@@ -58,7 +58,7 @@ pytest --mpl                                # run the test suite (with golden im
 
 ## Documentation
 
-- **[manual.html](manual.html)** — the full user manual (open in a browser): quickstart,
+- **[manual.html](https://hugovegadlc.github.io/econcharts/manual.html)** — the full user manual: quickstart,
   the spec reference, style vocabularies, batches & decks, and a worked gallery.
 - **[GRAMMAR.md](GRAMMAR.md)** — the canonical spec grammar reference.
 - **[CLAUDE.md](CLAUDE.md)** — design notes and project conventions.
