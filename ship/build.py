@@ -10,7 +10,7 @@ Run from a venv that has the deps + PyInstaller:
     ship/venv/Scripts/python ship/build.py
 
 Note: build from a clean python.org venv when possible. On the anaconda-based dev
-machine PyInstaller also needs `…\anaconda3\Library\bin` on PATH (for ffi-8.dll).
+machine PyInstaller also needs `…\\anaconda3\\Library\\bin` on PATH (for ffi-8.dll).
 
 Result:
     ship/dist/econcharts/        the bundle
