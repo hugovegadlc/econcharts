@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/block_image_kill.py",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/block_image_kill.py\"",
             "timeout": 10,
             "statusMessage": "Checking for image-wide Office kills..."
           }

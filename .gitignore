@@ -33,3 +33,6 @@ dist/
 # Editor / OS
 .DS_Store
 Thumbs.db
+
+# Sibling project with its own git repo
+econcharts_excel/
