@@ -12,6 +12,19 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/block_image_kill.py",
+            "timeout": 10,
+            "statusMessage": "Checking for image-wide Office kills..."
+          }
+        ]
+      }
     ]
   }
 }
