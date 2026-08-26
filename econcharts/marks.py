@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import math
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from econcharts.data import parse_period
 from econcharts.theme import value_decimals
@@ -190,6 +190,70 @@ def separate(want: list[float], pitch: float) -> list[float]:
         for _ in range(c):
             got.append(v + len(got) * pitch)
     return got
+
+
+def flip_end_label_onto_clear_side(ax, placed: list["PlacedMark"], renderer) -> bool:
+    """At the LAST point a line has only ONE neighbour, so "above" and "below"
+    are not interchangeable the way `_single_point_side` treats an interior
+    point: the incoming stroke occupies the side it descends from. A series that
+    drops steeply into its final value therefore gets its label placed on its
+    own curve.
+
+    `draw_line_marks` says "lowest below, the rest above" at a shared x, which is
+    right everywhere except here. With exactly two marks at the last point, the
+    upper one drops below its own point instead — into the clear space between
+    the two series.
+
+    The test is geometric, not merely "is it falling": what matters is how far
+    the stroke rises across the label's own half-width, since the label is
+    centred on the point.
+
+        intrusion = fall * min(1, halfLabelWidth / distance to the neighbour)
+
+    Falling alone is a false positive on most charts — measured on the four in
+    the Excel edition's decks with exactly two end marks, the one that needed the
+    flip intrudes 13.5pt into a 12.5pt label while two others that merely fall
+    intrude 1.35pt and 0.76pt.
+
+    The flip is refused when the two endpoints are closer than a label pitch:
+    landing on the other label is worse than the collision being avoided.
+
+    Returns True if it moved something (so the caller re-measures).
+    """
+    ends = [pm for pm in placed if pm.perp is not None and pm.perp.prev_pt is not None]
+    if not ends:
+        return False
+    last_x = max(round(pm.perp.xi, 6) for pm in ends)
+    grp = [pm for pm in ends if round(pm.perp.xi, 6) == last_x]
+    if len(grp) != 2:
+        return False
+    upper = next((pm for pm in grp if pm.perp.side == "above"), None)
+    lower = next((pm for pm in grp if pm.perp.side == "below"), None)
+    if upper is None or lower is None:
+        return False
+    # A padded `period` frame can leave the neighbour blank; without a real one
+    # there is nothing to measure, so leave the label where it is.
+    if not all(math.isfinite(float(v)) for v in upper.perp.prev_pt):
+        return False
+
+    to_px = ax.transData.transform
+    ux, uy = to_px((upper.perp.xi, upper.perp.yi))
+    _, ly = to_px((lower.perp.xi, lower.perp.yi))
+    prev_x, prev_y = to_px(upper.perp.prev_pt)
+
+    fall = prev_y - uy                       # display y grows upward
+    reach = ux - prev_x
+    if fall <= 0 or reach <= 0:
+        return False                         # rises into the point, or no room to measure
+    bb = upper.artist.get_window_extent(renderer)
+    intrusion = fall * min(1.0, (bb.width / 2) / reach)
+    if intrusion < bb.height / 2:
+        return False                         # the stroke never reaches the label
+    if abs(uy - ly) < bb.height * SPREAD_PITCH:
+        return False                         # no room between the two endpoints
+    # PerpSpec is frozen; PlacedMark is not, so swap in a new spec.
+    upper.perp = replace(upper.perp, side="below")
+    return True
 
 
 # Minimum horizontal component of the perpendicular vector before the

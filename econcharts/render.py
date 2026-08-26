@@ -282,6 +282,12 @@ def _finalize_marks(ax, placed: list[_marks.PlacedMark], theme: Theme) -> None:
         if bb.height > seg_h or bb.width > bar_px:
             pm.artist.set_visible(False)
 
+    # 1a-bis) the LAST point has only one neighbour, so above/below are not
+    #     interchangeable there — a line that falls into its final value has its
+    #     own stroke where an "above" label wants to sit. Decided BEFORE 1b,
+    #     which reads `perp.side` to pick the offset's direction.
+    _marks.flip_end_label_onto_clear_side(ax, placed, renderer)
+
     # 1b) above/below line labels: offset perpendicular to the line's local slope
     #     (final transform), by the label's own reach along that direction plus a
     #     constant gap — so the clearance is the same on flat and steep sections.

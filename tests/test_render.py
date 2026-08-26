@@ -1128,3 +1128,55 @@ def test_a_leader_is_drawn_when_a_label_really_travels():
     fig = _three_endpoints(5.0, 5.0, 5.0)
     ax = fig.axes[0]
     assert len(_leaders(ax)) == 2      # the outer two; the middle keeps its point
+
+
+# --- the last point has only one neighbour ------------------------------------
+#
+# "lowest below, the rest above" is right at every shared x except the last one,
+# where the incoming stroke occupies the side it descends from.
+
+def _two_endpoints(tail_upper, tail_lower=0.6, head_upper=13.0):
+    per = [f"2024M{m:02d}" for m in range(1, 13)]
+    upper = [head_upper] * 11 + [tail_upper]
+    lower = [1.0] * 11 + [tail_lower]
+    return render(Spec(title="t", period=f"{per[0]}:{per[-1]}", series=[
+        {"name": "U", "type": "line", "mark": "last",
+         "data": {p: v for p, v in zip(per, upper)}},
+        {"name": "L", "type": "line", "mark": "last",
+         "data": {p: v for p, v in zip(per, lower)}}]), size="slides_half")
+
+
+def _upper_label(fig, lower_text="0,6"):
+    return next(t for t in fig.axes[0].texts if t.get_text() != lower_text)
+
+
+def test_upper_end_label_drops_below_when_its_line_falls_into_the_point():
+    """A steep fall puts the series' own stroke where an "above" label sits."""
+    assert _upper_label(_two_endpoints(8.4)).xyann[1] < 0
+
+
+def test_upper_end_label_stays_above_when_its_line_rises_into_the_point():
+    assert _upper_label(_two_endpoints(14.0)).xyann[1] > 0
+
+
+def test_a_shallow_fall_is_not_enough_to_flip_the_label():
+    """Falling alone is a false positive on most charts — what matters is how
+    far the stroke rises across the label's own half-width."""
+    assert _upper_label(_two_endpoints(12.8)).xyann[1] > 0
+
+
+def test_the_flip_is_refused_when_the_two_endpoints_are_too_close():
+    """Landing on the other label is worse than the collision being avoided."""
+    fig = _two_endpoints(8.4, tail_lower=8.3, head_upper=13.0)
+    assert _upper_label(fig, lower_text="8,3").xyann[1] > 0
+
+
+def test_a_lone_end_mark_is_left_to_the_single_point_rule():
+    """One marked series at the last point is not this rule's business."""
+    per = [f"2024M{m:02d}" for m in range(1, 13)]
+    data = {p: v for p, v in zip(per, [13] * 11 + [8.4])}
+    fig = render(Spec(title="t", period=f"{per[0]}:{per[-1]}",
+                      series=[{"name": "U", "type": "line", "mark": "last", "data": data}]),
+                 size="slides_half")
+    # a falling end point is a local minimum -> below, by _single_point_side
+    assert next(t for t in fig.axes[0].texts).xyann[1] < 0
