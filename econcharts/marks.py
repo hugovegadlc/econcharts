@@ -151,6 +151,47 @@ def _single_point_side(y, i) -> str:
 PERP_GAP = 3.0
 
 
+# Minimum centre-to-centre spacing between two spread endpoint labels, as a
+# multiple of the label's own height. 1.2 leaves a fifth of a line of clear air.
+SPREAD_PITCH = 1.2
+
+
+# A leader line is earned only when a label ends up at least this many pitches
+# from its own point. Drawing one for every label that moved at all produced 44
+# leaders across a 15-slide deck, which reads as clutter — at a nudge of a few
+# points the eye pairs a label with its point unaided, and the BBVA source decks
+# draw no leaders at all.
+LEADER_AFTER_PITCHES = 0.75
+
+
+def separate(want: list[float], pitch: float) -> list[float]:
+    """Least-squares isotonic fit: the closest set of positions to `want` that
+    keeps `pitch` between neighbours. Pool-adjacent-violators, O(n).
+
+    `want` is ordered top-first in a coordinate that INCREASES downward, and the
+    result satisfies ``got[i+1] - got[i] >= pitch``.
+
+    What matters is that it moves ONLY what is crowded. Re-spacing the whole set
+    evenly about its common centre — the obvious approach, and what this
+    replaced — drags labels that were never crowded: measured on three endpoints
+    at 21.5 / 2.9 / 1.8, where only the last two collide, it moved the 21.5
+    label 65pt to solve someone else's problem. Here each pooled run is centred
+    on its own mean and everything else stays exactly where it wanted to be.
+    """
+    blocks: list[list[float]] = []          # [value, count] per pooled run
+    for i, w in enumerate(want):
+        blocks.append([w - i * pitch, 1])
+        while len(blocks) > 1 and blocks[-2][0] > blocks[-1][0]:
+            v2, c2 = blocks.pop()
+            v1, c1 = blocks[-1]
+            blocks[-1] = [(v1 * c1 + v2 * c2) / (c1 + c2), c1 + c2]
+    got: list[float] = []
+    for v, c in blocks:
+        for _ in range(c):
+            got.append(v + len(got) * pitch)
+    return got
+
+
 # Minimum horizontal component of the perpendicular vector before the
 # slope-aware offset is applied. Below this (~17° slope) the perpendicular
 # is nearly vertical and the label cannot meaningfully overlap the line.

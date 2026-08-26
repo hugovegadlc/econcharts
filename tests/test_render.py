@@ -501,18 +501,28 @@ def test_three_lines_last_point_labels_go_right():
 
 
 def test_cramped_right_labels_get_leaders():
-    # tall peak -> big y-range -> the near-identical endpoints are cramped in pixels
+    """Coincident endpoints: the two that are pushed a long way from their points
+    earn a leader, the one left sitting on its own point does not.
+
+    This used to assert one leader per cramped label, which is what produced 44
+    of them across a 15-slide deck. A leader is now earned only by a label that
+    travelled at least marks.LEADER_AFTER_PITCHES of a label height.
+    """
     spec = Spec.from_dict({
         "title": "T", "period": "2021Q1:2021Q4",
         "series": [
-            {"name": "A", "type": "line", "data": [1, 8, 3, 2.1], "mark": "last"},
+            {"name": "A", "type": "line", "data": [1, 8, 3, 2.0], "mark": "last"},
             {"name": "B", "type": "line", "data": [1, 7, 3, 2.0], "mark": "last"},
-            {"name": "C", "type": "line", "data": [1, 6, 3, 1.9], "mark": "last"},
+            {"name": "C", "type": "line", "data": [1, 6, 3, 2.0], "mark": "last"},
         ],
     })
     ax = render(spec).axes[0]
     leaders = [l for l in ax.lines if len(l.get_xdata()) == 2]   # 2-point leader segments
-    assert len(leaders) == 3   # one per cramped right label
+    assert len(leaders) == 2   # the outer two travelled; the middle one did not
+
+    offsets = sorted(float(t.xyann[1]) for t in ax.texts if t.get_text() == "2")
+    assert offsets[1] == pytest.approx(0.0, abs=0.01)            # middle stayed put
+    assert offsets[0] < 0 < offsets[2]                           # outer two split
 
 
 def test_single_line_min_below_max_above():
@@ -1045,3 +1055,76 @@ def test_spec_legend_overrides_theme_position():
 def test_unknown_legend_position_raises_render_error():
     with pytest.raises(RenderError, match="legend position 'centered'"):
         render(_macro_two_lines(legend="centered"))
+
+
+# --- endpoint-label separation -----------------------------------------------
+#
+# The rule that matters: separation moves ONLY what is crowded. Re-spacing the
+# whole set evenly about its common centre — what this replaced — drags labels
+# that were never crowded, and earns a leader line for each of them.
+
+def _three_endpoints(a, b, c):
+    """Three lines whose last points sit at a, b, c."""
+    per = [f"2024M{m:02d}" for m in range(1, 13)]
+    series = [{"name": n, "type": "line", "mark": "last",
+               "data": {p: end - 3 + i * 0.25 for i, p in enumerate(per)}}
+              for n, end in (("A", a), ("B", b), ("C", c))]
+    return render(Spec(title="t", period=f"{per[0]}:{per[-1]}", series=series),
+                  size="slides_half")
+
+
+def _leaders(ax):
+    return [l for l in ax.lines if l.get_linewidth() == 0.6]
+
+
+def test_separate_leaves_an_uncrowded_set_exactly_where_it_was():
+    from econcharts.marks import separate
+    assert separate([0.0, 50.0, 100.0], 12.5) == [0.0, 50.0, 100.0]
+
+
+def test_separate_opens_a_tight_pair_about_its_own_centre():
+    from econcharts.marks import separate
+    got = separate([0.0, 3.0], 12.5)
+    assert got[1] - got[0] == pytest.approx(12.5)          # exactly one pitch
+    assert sum(got) / 2 == pytest.approx(1.5)              # centred on where they were
+
+
+def test_separate_does_not_move_a_label_that_is_nowhere_near_the_crowd():
+    """The regression this exists for: one crowded pair must not drag a third
+    label that had plenty of room."""
+    from econcharts.marks import separate
+    got = separate([0.0, 97.0, 100.0], 12.5)
+    assert got[0] == 0.0                                   # untouched
+    assert got[2] - got[1] == pytest.approx(12.5)
+    assert (got[1] + got[2]) / 2 == pytest.approx(98.5)    # the pair's own mean
+
+
+def test_separate_spreads_a_fully_crowded_run_about_its_mean():
+    from econcharts.marks import separate
+    got = separate([0.0, 1.0, 2.0], 10.0)
+    assert [got[1] - got[0], got[2] - got[1]] == pytest.approx([10.0, 10.0])
+    assert sum(got) / 3 == pytest.approx(1.0)
+
+
+def test_a_distant_endpoint_label_keeps_its_own_height():
+    """Two endpoints crowded, one far above: the far one must not be dragged."""
+    fig = _three_endpoints(21.5, 2.9, 1.8)
+    ax = fig.axes[0]
+    offsets = {t.get_text(): t.xyann[1] for t in ax.texts if t.get_text()}
+    far = max(offsets, key=lambda k: float(k.replace(",", ".")))
+    assert offsets[far] == pytest.approx(0.0, abs=0.01)
+
+
+def test_no_leader_for_a_label_that_barely_moved():
+    """A nudge of a couple of points needs no leader — the eye pairs the label
+    with its point unaided, and the source decks draw none at all."""
+    fig = _three_endpoints(21.5, 2.9, 1.8)
+    assert _leaders(fig.axes[0]) == []
+
+
+def test_a_leader_is_drawn_when_a_label_really_travels():
+    """Three endpoints on top of each other: the outer two are pushed far from
+    their points, and those earn a leader."""
+    fig = _three_endpoints(5.0, 5.0, 5.0)
+    ax = fig.axes[0]
+    assert len(_leaders(ax)) == 2      # the outer two; the middle keeps its point

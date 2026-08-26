@@ -344,9 +344,15 @@ def _finalize_marks(ax, placed: list[_marks.PlacedMark], theme: Theme) -> None:
 
 def _spread_right_labels(ax, renderer, theme: Theme,
                          placed: list[_marks.PlacedMark]) -> bool:
-    """Vertically separate right-of-endpoint labels when their points are too
-    close, preserving value order, and draw a leader from each label to its point.
-    Returns True if anything moved (so the caller re-measures)."""
+    """Vertically separate right-of-endpoint labels whose points are too close,
+    preserving value order, and draw a leader from each label that travelled far
+    enough to need one. Returns True if anything moved (so the caller
+    re-measures).
+
+    Only what is crowded moves — see marks.separate. A label with no neighbour
+    near it keeps its own height, which is what makes the column read as
+    labelling its own points rather than as an evenly spaced list.
+    """
     labels = [(pm.artist, pm.right_anchor) for pm in placed if pm.right_anchor is not None]
     if len(labels) < 2:
         return False
@@ -357,19 +363,31 @@ def _spread_right_labels(ax, renderer, theme: Theme,
         bb = L.get_window_extent(renderer)
         info.append((L, xi, yi, adx, ady, bb.height))
     info.sort(key=lambda t: t[2], reverse=True)           # value desc -> top first
-    gap = max(t[5] for t in info) * 1.2                    # min spacing (px)
-    natural = [t[4] for t in info]
-    if all(natural[k] - natural[k + 1] >= gap for k in range(len(natural) - 1)):
-        return False                                       # already separated
-    center = sum(natural) / len(natural)
-    targets = [center + (len(info) - 1) * gap / 2 - k * gap for k in range(len(info))]
+    pitch = max(t[5] for t in info) * _marks.SPREAD_PITCH  # min centre spacing (px)
+    natural = [t[4] for t in info]                         # each point's y, in px
+
+    # marks.separate works top-first in a coordinate that increases DOWNWARD;
+    # display y increases upward, hence the sign flips.
+    targets = [-v for v in _marks.separate([-y for y in natural], pitch)]
+
+    moved = False
     for (L, xi, yi, adx, ady, _h), ty in zip(info, targets):
+        shift = ty - ady
+        if abs(shift) < 0.5:
+            continue                                       # sub-pixel: leave it be
         dx, _ = L.xyann
-        L.xyann = (dx, (ty - ady) / dpi72)                 # move label to its slot
-        ex, ey = ax.transData.inverted().transform((adx + dx * dpi72, ty))
-        leader, = ax.plot([xi, ex], [yi, ey], color=theme.colors["leadergrey"], lw=0.6, zorder=3.8)
-        leader.set_in_layout(False)
-    return True
+        L.xyann = (dx, shift / dpi72)                      # move label to its slot
+        moved = True
+        # A leader is earned only by a label that actually travelled. One drawn
+        # for every label that moved at all is clutter: the eye pairs a label
+        # with its point unaided at a nudge of a few points, and the source
+        # decks draw none.
+        if abs(shift) >= pitch * _marks.LEADER_AFTER_PITCHES:
+            ex, ey = ax.transData.inverted().transform((adx + dx * dpi72, ty))
+            leader, = ax.plot([xi, ex], [yi, ey], color=theme.colors["leadergrey"],
+                              lw=0.6, zorder=3.8)
+            leader.set_in_layout(False)
+    return moved
 
 
 def _mark_decimals(items, long_df: pd.DataFrame, series_decimals: dict) -> int:
