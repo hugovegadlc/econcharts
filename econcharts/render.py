@@ -143,6 +143,10 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         for a, a_placed in ((ax, placed), (ax2, placed2)):
             if a is not None:
                 _finalize_marks(a, a_placed, theme)
+        # Each axis was finalized blind to the other; only a cross-axis pass can
+        # see that the primary's label and the secondary's landed on top of each
+        # other. Moves nothing unless they actually overlap.
+        _marks.decollide_across_axes(ax, placed, ax2, placed2)
     return fig
 
 

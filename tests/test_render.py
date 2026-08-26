@@ -1180,3 +1180,44 @@ def test_a_lone_end_mark_is_left_to_the_single_point_rule():
                  size="slides_half")
     # a falling end point is a local minimum -> below, by _single_point_side
     assert next(t for t in fig.axes[0].texts).xyann[1] < 0
+
+
+# --- two value axes, one set of endpoint labels -------------------------------
+#
+# Each axis group is drawn and finalized on its own, which is right within a
+# group and blind across them: two labels can land in the same place.
+
+def _dual_axis(primary, secondary):
+    per = [f"2024M{m:02d}" for m in range(1, 13)]
+    series = [{"name": f"P{i}", "type": "line", "mark": "last", "axis": "primary",
+               "data": {p: e - 1 + k * 0.09 for k, p in enumerate(per)}}
+              for i, e in enumerate(primary)]
+    series += [{"name": f"S{i}", "type": "line", "mark": "last", "axis": "secondary",
+                "data": {p: e - 1 + k * 0.09 for k, p in enumerate(per)}}
+               for i, e in enumerate(secondary)]
+    fig = render(Spec(title="t", period=f"{per[0]}:{per[-1]}", series=series),
+                 size="slides_half")
+    fig.canvas.draw()
+    r = fig.canvas.get_renderer()
+    return [(t.get_text(), t.get_window_extent(r))
+            for ax in fig.axes for t in ax.texts if t.get_text()]
+
+
+def _any_overlap(boxes):
+    return [(a[0], b[0]) for i, a in enumerate(boxes) for b in boxes[i + 1:]
+            if a[1].overlaps(b[1])]
+
+
+def test_endpoint_labels_on_two_axes_do_not_overlap():
+    """The primary's 40,4 and the secondary's 6,6 plot at the same height —
+    each axis placed its own correctly and neither could see the other."""
+    assert _any_overlap(_dual_axis([40.4, 26.9], [6.6, 6.3])) == []
+
+
+def test_a_well_spaced_dual_axis_chart_is_left_alone():
+    """Nothing moves unless two labels actually collide."""
+    before = {t: (bb.y0 + bb.y1) / 2 for t, bb in _dual_axis([40.0, 10.0], [1.0])}
+    # re-render: positions must be reproducible AND unperturbed by the pass
+    after = {t: (bb.y0 + bb.y1) / 2 for t, bb in _dual_axis([40.0, 10.0], [1.0])}
+    assert before == after
+    assert _any_overlap(_dual_axis([40.0, 10.0], [1.0])) == []

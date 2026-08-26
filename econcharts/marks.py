@@ -256,6 +256,60 @@ def flip_end_label_onto_clear_side(ax, placed: list["PlacedMark"], renderer) -> 
     return True
 
 
+def decollide_across_axes(ax, placed: list["PlacedMark"],
+                          ax2, placed2: list["PlacedMark"]) -> bool:
+    """Separate end-point labels that belong to DIFFERENT value axes.
+
+    Each axis group is drawn and finalized on its own — its own `placed` list,
+    its own side rules, its own spread — which is right within a group and blind
+    across them. Two labels then land wherever their own axis put them, and on a
+    dual-axis chart those can be the same place: measured on the *Dolarización*
+    shape, the primary's 40,4 and the secondary's 6,6 came out in an identical
+    y band, 228.7..238.7, overlapping outright.
+
+    Nothing is moved unless two labels actually overlap, so a single-axis chart
+    and a well-spaced dual-axis one are untouched. When they do, the whole
+    last-point set is separated isotonically about where it already is, in
+    display space — the one coordinate system the two axes share.
+    """
+    if ax2 is None:
+        return False
+    items = []                      # (artist, anchor_display_x)
+    for a, group in ((ax, placed), (ax2, placed2)):
+        for pm in group:
+            anchor_pt = pm.right_anchor or (pm.perp and (pm.perp.xi, pm.perp.yi))
+            if anchor_pt is None:
+                continue
+            items.append((pm.artist, a.transData.transform(anchor_pt)[0]))
+    if len(items) < 2:
+        return False
+    last_x = max(x for _, x in items)
+    group = [artist for artist, x in items if abs(x - last_x) < 1.0]
+    if len(group) < 2:
+        return False
+
+    fig = ax.figure
+    fig.draw_without_rendering()
+    renderer = fig.canvas.get_renderer()
+    boxes = [(a, a.get_window_extent(renderer)) for a in group]
+    if not any(b1.overlaps(b2) for i, (_, b1) in enumerate(boxes)
+               for _, b2 in boxes[i + 1:]):
+        return False
+
+    boxes.sort(key=lambda t: -(t[1].y0 + t[1].y1) / 2)          # top first
+    pitch = max(bb.height for _, bb in boxes) * SPREAD_PITCH
+    centres = [(bb.y0 + bb.y1) / 2 for _, bb in boxes]
+    targets = [-v for v in separate([-c for c in centres], pitch)]
+
+    dpi72 = fig.dpi / 72.0
+    for (artist, _bb), centre, target in zip(boxes, centres, targets):
+        if abs(target - centre) < 0.5:
+            continue
+        dx, dy = artist.xyann
+        artist.xyann = (dx, dy + (target - centre) / dpi72)
+    return True
+
+
 # Minimum horizontal component of the perpendicular vector before the
 # slope-aware offset is applied. Below this (~17° slope) the perpendicular
 # is nearly vertical and the label cannot meaningfully overlap the line.
