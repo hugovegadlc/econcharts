@@ -252,3 +252,31 @@ charts:
       - {name: Serie A, type: line, mark: {at: last, marker: true}, data: [2, 3, 5, 7, 8, 7, 6, 5, 4, 4, 3.5, 3, 2.8, 2.5, 2.3, 2.2]}
       - {name: Serie B, type: line, mark: {at: last, marker: true}, data: [1, 2, 3, 4, 5, 5, 4, 4, 3, 3, 3, 2.5, 2.4, 2.2, 2.1, 2.0]}
       - {name: Serie C, type: line, mark: {at: last, marker: true}, data: [3, 3, 2, 2, 2, 2.5, 3, 3, 2.5, 2, 2, 2, 1.9, 1.9, 1.8, 1.8]}
+
+  # ── two series marked at the last point, and the upper one FALLS into it ──
+  # The side rule at a shared x is "lowest below, the rest above" — which is
+  # right everywhere except the last point, where a line has only one neighbour
+  # and its own stroke occupies the side it descends from. Serie A drops hard at
+  # the end, so its label goes BELOW rather than onto its own curve.
+  - id: caida_al_final
+    title: Caída en el último punto
+    subtitle: prueba de la regla de lado en el extremo
+    period: 2022Q1:2024Q4
+    series:
+      - {name: Serie A, type: line, mark: {at: last, marker: true}, data: [12.6, 12.8, 13.1, 12.9, 13.0, 13.2, 12.8, 13.1, 12.9, 13.0, 12.9, 8.4]}
+      - {name: Serie B, type: line, mark: {at: last, marker: true}, data: [1.2, 1.1, 0.9, 1.0, 1.1, 0.8, 0.9, 1.0, 0.8, 0.7, 0.6, 0.6]}
+
+  # ── both value axes marked at the last point ─────────────────────────────
+  # Each axis is drawn and finalized on its own, so two labels can land in the
+  # same place and neither pass can see it. Here both series end at the top of
+  # their own scale, which puts their labels at the same height until the
+  # cross-axis pass separates them.
+  - id: dos_ejes_marcados
+    title: Dos ejes — ambos marcados al final
+    subtitle: prueba del reparto entre ejes
+    period: 2023Q1:2024Q4
+    ylabel: nivel
+    y2label: ratio
+    series:
+      - {name: Nivel (izq.), type: line, mark: {at: last, marker: true}, data: [70, 71, 72, 71, 73, 74, 75, 76]}
+      - {name: Ratio (der.), type: line, axis: secondary, mark: {at: last, marker: true}, data: [3.85, 3.80, 3.76, 3.74, 3.76, 3.79, 3.82, 3.85]}
