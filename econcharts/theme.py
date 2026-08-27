@@ -76,6 +76,33 @@ class Theme:
     num_thousands: str = "."  # thousands separator used by format_number
     num_decimal: str = ","    # decimal separator used by format_number
     source_prefix: str = "Fuente:"
+    # The theme file as parsed, for keys econcharts names ITSELF — see `val`.
+    raw: dict = field(default_factory=dict)
+
+    def val(self, path: str, default=None):
+        """A theme value by dotted path, e.g. `val("format.marks.perp_gap", 3.0)`.
+
+        For the keys econcharts invents, and only those. The split is:
+
+        * things the HOST already names — stroke weights, type sizes, gridline
+          colour — stay in each edition's own vocabulary (`rc:` here, a
+          `format.series:`/`format.axis:` tree in the Excel edition). Inventing
+          a third name for `line_weight` would buy nothing.
+        * things only econcharts names — mark placement, deck furniture, named
+          physical sizes, tick planning — get ONE name in both editions, because
+          there the alternative is not reuse, it is inventing the same concept
+          twice.
+
+        Every key the two themes already share is of the second kind, so this is
+        the de-facto rule made explicit. Typed fields stay the interface for the
+        long-standing keys; this is for the rest, so a new one costs no code.
+        """
+        node = self.raw
+        for part in path.split("."):
+            if not isinstance(node, dict) or part not in node:
+                return default
+            node = node[part]
+        return node
 
     def style(self):
         """Context manager applying this theme's rcParams (built in memory)."""
@@ -301,6 +328,7 @@ def load_theme(name: str) -> Theme:
 
     ann = raw.get("annotations", {})
     return Theme(
+        raw=raw,
         name=name,
         rc=rc,
         colors=colors,

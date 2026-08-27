@@ -146,22 +146,25 @@ def _single_point_side(y, i) -> str:
     return "above"
 
 
-# Constant gap (points) between a line label's near edge and its data point —
-# the same small clearance a label on a flat section has, applied on any slope.
-PERP_GAP = 3.0
+# `format.marks.perp_gap` is the clearance between a line label's near edge and
+# its data point, the same on any slope. It lives in the theme because it is a
+# preference, and under that name because the Excel edition names it that too.
 
 
-# Minimum centre-to-centre spacing between two spread endpoint labels, as a
-# multiple of the label's own height. 1.2 leaves a fifth of a line of clear air.
-SPREAD_PITCH = 1.2
+def spread_pitch(theme, dpi72: float, label_h_px: float) -> float:
+    """Minimum centre-to-centre spacing between two separated labels, in px.
 
+    Two parts, and they belong in different places. The label's own HEIGHT is
+    the floor: two labels closer than one line of text overlap, which is not a
+    style choice and so is not a theme key. The air on top of it is
+    `format.marks.spread_gap`, which IS a preference — a denser house sets it
+    lower.
 
-# A leader line is earned only when a label ends up at least this many pitches
-# from its own point. Drawing one for every label that moved at all produced 44
-# leaders across a 15-slide deck, which reads as clutter — at a nudge of a few
-# points the eye pairs a label with its point unaided, and the BBVA source decks
-# draw no leaders at all.
-LEADER_AFTER_PITCHES = 0.75
+    This used to be one multiplier of 1.2, which conflated the two: the 1.0
+    nobody may change with the 0.2 anybody may.
+    """
+    return label_h_px + float(theme.val("format.marks.spread_gap", 1.0)) * dpi72
+
 
 
 def separate(want: list[float], pitch: float) -> list[float]:
@@ -192,7 +195,7 @@ def separate(want: list[float], pitch: float) -> list[float]:
     return got
 
 
-def flip_end_label_onto_clear_side(ax, placed: list["PlacedMark"], renderer) -> bool:
+def flip_end_label_onto_clear_side(ax, placed: list["PlacedMark"], renderer, theme) -> bool:
     """At the LAST point a line has only ONE neighbour, so "above" and "below"
     are not interchangeable the way `_single_point_side` treats an interior
     point: the incoming stroke occupies the side it descends from. A series that
@@ -249,7 +252,7 @@ def flip_end_label_onto_clear_side(ax, placed: list["PlacedMark"], renderer) -> 
     intrusion = fall * min(1.0, (bb.width / 2) / reach)
     if intrusion < bb.height / 2:
         return False                         # the stroke never reaches the label
-    if abs(uy - ly) < bb.height * SPREAD_PITCH:
+    if abs(uy - ly) < spread_pitch(theme, ax.figure.dpi / 72.0, bb.height):
         return False                         # no room between the two endpoints
     # PerpSpec is frozen; PlacedMark is not, so swap in a new spec.
     upper.perp = replace(upper.perp, side="below")
@@ -257,7 +260,7 @@ def flip_end_label_onto_clear_side(ax, placed: list["PlacedMark"], renderer) -> 
 
 
 def decollide_across_axes(ax, placed: list["PlacedMark"],
-                          ax2, placed2: list["PlacedMark"]) -> bool:
+                          ax2, placed2: list["PlacedMark"], theme) -> bool:
     """Separate end-point labels that belong to DIFFERENT value axes.
 
     Each axis group is drawn and finalized on its own — its own `placed` list,
@@ -297,7 +300,7 @@ def decollide_across_axes(ax, placed: list["PlacedMark"],
         return False
 
     boxes.sort(key=lambda t: -(t[1].y0 + t[1].y1) / 2)          # top first
-    pitch = max(bb.height for _, bb in boxes) * SPREAD_PITCH
+    pitch = spread_pitch(theme, fig.dpi / 72.0, max(bb.height for _, bb in boxes))
     centres = [(bb.y0 + bb.y1) / 2 for _, bb in boxes]
     targets = [-v for v in separate([-c for c in centres], pitch)]
 

@@ -73,6 +73,25 @@ annotations:
 #     Each granularity names one or more styles + a default; a chart selects a style
 #     by NAME. Patterns use tokens {yyyy} {yy} {q} {mmm} {d}; for Q, {mmm} is the
 #     quarter's CLOSING month. es-PE month abbrevs live in theme.py. ----------------
+# --- econcharts' OWN vocabulary ----------------------------------------------
+# Keys matplotlib does not name. Stroke weights and type sizes live in `rc:`
+# below, because matplotlib already names those; these have no rcParam and no
+# Excel property either, so both editions use the SAME names for them and a
+# value means the same thing on either side.
+format:
+  marks:
+    # Clear air between two labels that had to be separated, in points, ON TOP
+    # OF the label's own height. The height is the floor - two labels closer
+    # than one line of text overlap, which is not a style choice - so only this
+    # gap is a preference.
+    spread_gap:           1.0
+    # Clear space between a line label's near edge and its data point.
+    perp_gap:             3.0
+    # A leader line is earned only by a label that ends this many label-heights
+    # from its own point. The BBVA decks draw none at all; a house that wanted
+    # one for every nudge would set this to 0.
+    leader_after_pitches: 0.75
+
 date_labels:
   rotation: default          # default rotation option; a chart may override with `tick_rotation`
   rotations:

@@ -73,6 +73,8 @@ Ref grammar dispatched by prefix: `excel:<file>#<sheet>!<column>` (implemented);
 - es-PE formatting (month abbrevs, `,` decimal / `.` thousands) lives in `theme.py` — never in the spec.
 
 ## Theme
+- **Which keys belong in a theme, and which in code.** If the HOST already names it — stroke weights, type sizes, gridline colour — say it in the host's own language (`rc:` here, a `format.series:`/`format.axis:` tree in the Excel edition); a third name buys nothing. If only **econcharts** names it — mark placement, deck furniture, named physical sizes, tick planning — use ONE name in both editions, because there the alternative is inventing the same concept twice. Every key the two themes already share is of the second kind. `Theme.val("format.marks.spread_gap", default)` reads them; typed fields remain the interface for the long-standing keys.
+- **A theme carries preferences, not invariants.** The test: *would a different value give a different house style, or broken output?* The label-overlap floor (pitch ≥ one text height) and `PERP_SLOPE_THRESHOLD` (~17°) are geometry and live in code; `spread_gap`, `perp_gap` and `leader_after_pitches` are house style and live in `format.marks`.
 - A theme = one `themes/<name>.yaml` (single source of truth): named `colors` table, series `cycle`, `annotations` vocabulary, `date_labels` patterns, matplotlib `rc` params. `theme.py` is the generic engine — it resolves color NAMES→hex everywhere and applies rc in memory (no `.mplstyle` on disk).
 - **Never hard-code a color in renderers** — pull from the active theme.
 - `bbva` is the reference theme; primary `#001391`, extracted from the official `Addin_BBVA_2025.xlam` (May 2025, "Version 3").

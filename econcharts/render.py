@@ -146,7 +146,7 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         # Each axis was finalized blind to the other; only a cross-axis pass can
         # see that the primary's label and the secondary's landed on top of each
         # other. Moves nothing unless they actually overlap.
-        _marks.decollide_across_axes(ax, placed, ax2, placed2)
+        _marks.decollide_across_axes(ax, placed, ax2, placed2, theme)
     return fig
 
 
@@ -290,7 +290,7 @@ def _finalize_marks(ax, placed: list[_marks.PlacedMark], theme: Theme) -> None:
     #     interchangeable there — a line that falls into its final value has its
     #     own stroke where an "above" label wants to sit. Decided BEFORE 1b,
     #     which reads `perp.side` to pick the offset's direction.
-    _marks.flip_end_label_onto_clear_side(ax, placed, renderer)
+    _marks.flip_end_label_onto_clear_side(ax, placed, renderer, theme)
 
     # 1b) above/below line labels: offset perpendicular to the line's local slope
     #     (final transform), by the label's own reach along that direction plus a
@@ -308,11 +308,11 @@ def _finalize_marks(ax, placed: list[_marks.PlacedMark], theme: Theme) -> None:
         # the label from sitting on top of the line.
         if extremum or abs(ox) <= _marks.PERP_SLOPE_THRESHOLD:
             sign = 1 if pm.perp.side == "above" else -1
-            dist = (bb.height / 2) / dpi72 + _marks.PERP_GAP
+            dist = (bb.height / 2) / dpi72 + float(theme.val("format.marks.perp_gap", 3.0))
             pm.artist.xyann = (0, sign * dist)
         else:
             reach = abs(ox) * (bb.width / 2) + abs(oy) * (bb.height / 2)
-            dist = reach / dpi72 + _marks.PERP_GAP
+            dist = reach / dpi72 + float(theme.val("format.marks.perp_gap", 3.0))
             pm.artist.xyann = (ox * dist, oy * dist)
         moved = True
 
@@ -373,7 +373,7 @@ def _spread_right_labels(ax, renderer, theme: Theme,
         bb = L.get_window_extent(renderer)
         info.append((L, xi, yi, adx, ady, bb.height))
     info.sort(key=lambda t: t[2], reverse=True)           # value desc -> top first
-    pitch = max(t[5] for t in info) * _marks.SPREAD_PITCH  # min centre spacing (px)
+    pitch = _marks.spread_pitch(theme, dpi72, max(t[5] for t in info))  # px
     natural = [t[4] for t in info]                         # each point's y, in px
 
     # marks.separate works top-first in a coordinate that increases DOWNWARD;
@@ -392,7 +392,7 @@ def _spread_right_labels(ax, renderer, theme: Theme,
         # for every label that moved at all is clutter: the eye pairs a label
         # with its point unaided at a nudge of a few points, and the source
         # decks draw none.
-        if abs(shift) >= pitch * _marks.LEADER_AFTER_PITCHES:
+        if abs(shift) >= pitch * float(theme.val("format.marks.leader_after_pitches", 0.75)):
             ex, ey = ax.transData.inverted().transform((adx + dx * dpi72, ty))
             leader, = ax.plot([xi, ex], [yi, ey], color=theme.colors["leadergrey"],
                               lw=0.6, zorder=3.8)

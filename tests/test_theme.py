@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pathlib
+
 import pandas as pd
 import pytest
 
@@ -278,3 +280,44 @@ def test_empty_cycle_errors(tmp_path, monkeypatch):
     monkeypatch.setattr(theme_mod, "_THEMES_DIR", tmp_path)
     with pytest.raises(ThemeError, match="cycle"):
         load_theme("t")
+
+
+# --- keys the two editions share ---------------------------------------------
+
+# econcharts' OWN vocabulary: concepts neither matplotlib nor Excel names, so a
+# second set of names for them would be invention, not reuse. A value here must
+# mean the same thing on both sides. Keys the HOST already names — stroke
+# weights, type sizes, gridline colour — are deliberately NOT in this list: they
+# stay in each edition's own language (`rc:` here, `format.series:` there).
+SHARED_MARK_KEYS = ["spread_gap", "perp_gap", "leader_after_pitches"]
+
+_EXCEL_THEME = (pathlib.Path(__file__).resolve().parent.parent
+                / "econcharts_excel" / "themes" / "bbva.yaml")
+
+
+def test_the_two_editions_agree_on_the_shared_mark_keys():
+    """The Excel edition is a separate repo; skip when it is not checked out."""
+    if not _EXCEL_THEME.exists():
+        pytest.skip("the Excel edition is not checked out beside this one")
+    import yaml
+    here = yaml.safe_load((pathlib.Path(__file__).resolve().parent.parent
+                           / "themes" / "bbva.yaml").read_text(encoding="utf-8"))
+    there = yaml.safe_load(_EXCEL_THEME.read_text(encoding="utf-8"))
+    for key in SHARED_MARK_KEYS:
+        mine = here["format"]["marks"].get(key)
+        theirs = there["format"]["marks"].get(key)
+        assert mine is not None, f"format.marks.{key} missing from the Python theme"
+        assert theirs is not None, f"format.marks.{key} missing from the Excel theme"
+        assert float(mine) == float(theirs), (
+            f"format.marks.{key} has drifted: {mine} here, {theirs} in the Excel edition"
+        )
+
+
+def test_an_invariant_is_not_a_theme_key():
+    """`perp_slope_threshold` is ~17 degrees of trigonometry, not a house style.
+    It belongs in code in both editions, and was a theme key in one of them."""
+    if not _EXCEL_THEME.exists():
+        pytest.skip("the Excel edition is not checked out beside this one")
+    import yaml
+    there = yaml.safe_load(_EXCEL_THEME.read_text(encoding="utf-8"))
+    assert "perp_slope_threshold" not in there["format"]["marks"]
