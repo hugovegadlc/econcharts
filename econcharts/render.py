@@ -111,7 +111,9 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         except (KeyError, ValueError) as e:
             raise RenderError(f"style: invalid rcParam override — {e}") from None
 
-    rc = {**theme.rc, **spec.style} if spec.style else theme.rc
+    # The size preset carries its own type and stroke — see Theme.rc_for.
+    base = theme.rc_for(size)
+    rc = {**base, **spec.style} if spec.style else base
     with plt.style.context(rc):
         # constrained layout fits content (title, ticks, legend) by resizing the
         # AXES inside a fixed-size figure — the figure never grows to fit content.
@@ -613,7 +615,7 @@ def _apply_legend(fig, ax, ax2, spec: Spec, theme: Theme) -> None:
         fig.legend(
             handles, labels,
             loc=f"outside {'lower' if position == 'below' else 'upper'} left",
-            ncol=_legend_columns(labels, fig.get_figwidth()),
+            ncol=_legend_columns(labels, fig.get_figwidth(), _legend_fontsize()),
         )
     else:
         # Inside the axes (ggplot-style): a vertical stack in the named corner,
@@ -625,6 +627,18 @@ def _apply_legend(fig, ax, ax2, spec: Spec, theme: Theme) -> None:
             legend_kw.update(frameon=True, facecolor=theme.legend_background,
                              edgecolor="none", framealpha=1.0)
         (ax2 or ax).legend(handles, labels, loc=_INSIDE_LEGEND_LOCS[position], **legend_kw)
+
+
+def _legend_fontsize(default: float = 8.0) -> float:
+    """The size the legend will actually be SET at, read live from the active
+    rcParams — the size preset may have changed it (see Theme.rc_for), and an
+    estimate made at the old size wraps the legend to too few columns and lets
+    a row run off the figure.
+    """
+    try:
+        return float(plt.rcParams["legend.fontsize"])
+    except (TypeError, ValueError):          # matplotlib also accepts 'medium' etc.
+        return default
 
 
 def _legend_columns(labels, fig_width_in: float, fontsize: float = 8.0) -> int:

@@ -79,6 +79,38 @@ class Theme:
     # The theme file as parsed, for keys econcharts names ITSELF — see `val`.
     raw: dict = field(default_factory=dict)
 
+    # rcParams the size preset's `font` drives. NOT the title: the add-in sets
+    # that outside the two functions this mirrors, so no size-dependent value
+    # could be established for it, and it keeps the theme's single title size.
+    _FONT_KEYS = ("font.size", "axes.labelsize", "xtick.labelsize",
+                  "ytick.labelsize", "legend.fontsize")
+
+    def rc_for(self, size: str) -> dict:
+        """This theme's rcParams with the SIZE PRESET's type and stroke applied.
+
+        Type and stroke follow the TARGET, not one global value, because the
+        presets are four destinations rather than four scalings of one chart. A
+        Word figure is read at arm's length at 1:1; a slide is projected — a
+        140mm figure blown up to a 2m screen and read from 5m away subtends
+        LESS than the 75mm one on paper, so it needs bigger absolute type and a
+        thicker stroke, not smaller. The add-in encodes exactly that: 7pt and a
+        2pt stroke for the Word presets, 10pt and 3pt for the slide ones.
+
+        Nothing scales on its own here — the figure is fixed in millimetres and
+        type is in points, both absolute — so this is a lookup per preset, and
+        larger type on a slide figure buys its room from the plot area.
+        """
+        style = self.val(f"size_styles.{size}") or {}
+        rc = dict(self.rc)
+        font = style.get("font")
+        if font is not None:
+            for key in self._FONT_KEYS:
+                rc[key] = float(font)
+        weight = style.get("series_weight")
+        if weight is not None:
+            rc["lines.linewidth"] = float(weight)
+        return rc
+
     def chrome(self, size: str) -> str:
         """Where a chart's title/subtitle/source are drawn for this size preset:
         "chart" (inside the figure) or "slide" (deck.py sets them on the slide).

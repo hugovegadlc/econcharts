@@ -1237,3 +1237,58 @@ def test_a_marks_dot_takes_its_size_from_the_theme():
 
     assert dot_size("bbva") == pytest.approx(load_theme("bbva").rc["lines.markersize"])
     assert dot_size("bbva") != dot_size("macro")   # a theme can differ, and does
+
+
+# --- type and stroke follow the TARGET ----------------------------------------
+
+def _size_style(size):
+    spec = Spec(title="T", period="2024Q1:2024Q4",
+                series=[{"name": "A", "type": "line",
+                         "data": {"2024Q1": 1, "2024Q2": 2, "2024Q3": 3, "2024Q4": 4}}])
+    ax = render(spec, size=size).axes[0]
+    ticks = ax.get_xticklabels(minor=True) or ax.get_xticklabels()
+    return ticks[0].get_fontsize(), ax.lines[0].get_linewidth(), ax.title.get_fontsize()
+
+
+def test_word_presets_are_set_smaller_than_slide_presets():
+    """Not a scaling of one chart: four targets. A Word figure is read at arm's
+    length at 1:1; a slide is projected and read from metres away, so it needs
+    BIGGER absolute type and a thicker stroke even though the figure is larger."""
+    word_pt, word_lw, _ = _size_style("word_half")
+    slide_pt, slide_lw, _ = _size_style("slides_full")
+    assert word_pt == 7 and word_lw == 2.0
+    assert slide_pt == 10 and slide_lw == 3.0
+
+
+def test_the_title_size_does_not_follow_the_preset():
+    """The add-in sets the title outside the two functions this mirrors, so no
+    size-dependent value could be established for it."""
+    assert _size_style("word_half")[2] == _size_style("slides_full")[2]
+
+
+def test_spec_style_still_overrides_the_preset():
+    """`style` is the raw escape hatch and stays the last word. It has to name
+    the rcParam that governs the thing: the preset sets xtick.labelsize
+    explicitly, so a bare font.size would not move the ticks — which was already
+    true of the theme before presets existed."""
+    spec = Spec(title="T", period="2024Q1:2024Q4", style={"xtick.labelsize": 14},
+                series=[{"name": "A", "type": "line",
+                         "data": {"2024Q1": 1, "2024Q2": 2, "2024Q3": 3, "2024Q4": 4}}])
+    ax = render(spec, size="word_half").axes[0]
+    ticks = ax.get_xticklabels(minor=True) or ax.get_xticklabels()
+    assert ticks[0].get_fontsize() == 14
+
+
+def test_the_legend_wraps_at_the_size_the_preset_actually_sets():
+    """The wrap estimate used to assume 8pt while the legend was set at 10, so a
+    three-entry row ran off the figure."""
+    spec = Spec(title="T", period="2024Q1:2024Q4", series=[
+        {"name": n, "type": "stacked",
+         "data": {"2024Q1": 1, "2024Q2": 2, "2024Q3": 3, "2024Q4": 4}}
+        for n in ("Consumo", "Inversión", "Sector externo")])
+    fig = render(spec, size="slides_half")
+    fig.canvas.draw()
+    r = fig.canvas.get_renderer()
+    assert fig.legends
+    box = fig.legends[0].get_window_extent(r)
+    assert box.x1 <= fig.get_figwidth() * fig.dpi + 1     # nothing runs off the edge

@@ -83,6 +83,12 @@ def max_labels_for(width_in: float, rotation: int = 0) -> int:
     Rotated labels have a smaller horizontal footprint, so more fit.
     At 270° (reading upward) the footprint is just the font height — cap
     the scaling at cos(80°) ≈ 0.17 to avoid exploding the count.
+
+    The 1.8 labels-per-inch is calibrated at the theme's base type size. Size
+    presets change that (7pt for Word, 10pt for slides — see Theme.rc_for), so
+    the constant is deliberately conservative: measured across the whole gallery
+    at 10pt, no two date labels overlap. A much larger preset font would need
+    this to scale with the type.
     """
     scale = 1.0 / max(0.17, math.cos(math.radians(abs(rotation) % 180)))
     return max(2, round(width_in * 1.8 * scale))
