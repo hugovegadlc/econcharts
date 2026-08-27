@@ -79,6 +79,12 @@ class Theme:
     # The theme file as parsed, for keys econcharts names ITSELF — see `val`.
     raw: dict = field(default_factory=dict)
 
+    def chrome(self, size: str) -> str:
+        """Where a chart's title/subtitle/source are drawn for this size preset:
+        "chart" (inside the figure) or "slide" (deck.py sets them on the slide).
+        """
+        return str(self.val(f"size_styles.{size}.chrome", "chart")).strip().lower()
+
     def val(self, path: str, default=None):
         """A theme value by dotted path, e.g. `val("format.marks.perp_gap", 3.0)`.
 

@@ -135,8 +135,15 @@ def render(spec: Spec, size: str = DEFAULT_SIZE, data_root=None) -> Figure:
         _apply_axes(ax, spec, long_df, has_bars, window, theme)
         if ax2 is not None:
             _apply_secondary_axis(ax2, spec, theme)
-        _apply_titles(ax, spec, theme)
-        _apply_source(fig, spec, theme)
+        # `chrome: slide` renders the chart BARE: its title, units line and
+        # source are set on the SLIDE by deck.py instead, above a rule and on a
+        # white panel, which is how BBVA decks are actually built (every chart
+        # measured in Sistema Bancario has no title of its own). The wording
+        # still comes from the spec; only the surface it lands on moves, and
+        # nothing in the spec changes — it is a property of the size preset.
+        if theme.chrome(size) != "slide":
+            _apply_titles(ax, spec, theme)
+            _apply_source(fig, spec, theme)
         _apply_legend(fig, ax, ax2, spec, theme)
         # marks (dots/value labels): hide stacked labels that don't fit their
         # segment, then grow the axis limits so edge labels aren't clipped.

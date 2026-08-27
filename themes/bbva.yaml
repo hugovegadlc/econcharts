@@ -50,6 +50,28 @@ sizes:
   slides_half: [ 85,  70]   # default
   slides_full: [140,  75]
 
+  # The add-in's earlier 16:9 row, the one that matches production: charts in
+  # real BBVA decks measure 95-105 x 78-84 mm, near 100x80 and nowhere near the
+  # shipping 85x70. It also satisfies the 1/2-1/1 arithmetic the shipping row
+  # breaks: 218 = 2 x 100 + 18 mm gutter.
+  slides16_9_half: [100, 80]
+  slides16_9_full: [218, 80]
+
+# Per-size form. `chrome` says WHERE a chart's title, subtitle and source are
+# drawn: 'chart' puts them inside the figure, 'slide' leaves the chart bare and
+# hands the words to the deck, which sets them in slide text boxes above a rule
+# - which is what BBVA decks actually do. The wording still comes from the spec;
+# only the surface it lands on moves.
+#
+# `font` and `series_weight` are read by the Excel edition only, for now.
+size_styles:
+  word_half:       {font: 7,  series_weight: 2}
+  word_full:       {font: 7,  series_weight: 2}
+  slides_half:     {font: 10, series_weight: 3}
+  slides_full:     {font: 10, series_weight: 3}
+  slides16_9_half: {font: 10, series_weight: 3, chrome: slide}
+  slides16_9_full: {font: 10, series_weight: 3, chrome: slide}
+
 # --- legend placement: below | above (figure-level rows) or an inside corner
 #     (top-left/top-right/bottom-left/bottom-right). A chart may override. -----
 source_prefix: "Fuente:"
@@ -73,6 +95,126 @@ annotations:
 #     Each granularity names one or more styles + a default; a chart selects a style
 #     by NAME. Patterns use tokens {yyyy} {yy} {q} {mmm} {d}; for Q, {mmm} is the
 #     quarter's CLOSING month. es-PE month abbrevs live in theme.py. ----------------
+# PowerPoint deck geometry, inches. A 16:9 slide carrying a GRID of charts,
+# each centred in its cell at its true physical size.
+#
+# cols/rows are measured, not chosen: a real BBVA deck ('Registro de
+# pruebas.pptx') puts 85x70mm charts - the same size this add-in exports -
+# in a 2x2 or 3x2 grid, with roughly 15mm between them. The Python edition's
+# two-per-slide leaves the bottom half of the slide empty, which makes a
+# correctly sized chart look too small.
+# Every number here is measured off the house template,
+# 'Plantilla BBVA Research_16_9.pptx' slides 18-19 (layout CUSTOM_2_2_1),
+# converted mm -> in. Do not round them to something tidier: an 85x70mm chart
+# centred in a 100.7x91.3mm panel IS the house geometry, and the panel is what
+# makes a correctly sized chart look correctly sized.
+#
+#   slide            254.0 x 142.9 mm   (10 x 5.625 in)
+#   panels           100.7 mm wide, at x = 9.5 and 130.4  -> 20.2 mm gutter
+#   content span     9.5 .. 231.1 = 221.6 mm  (the picker's 1/1 218 mm + slack)
+#
+# The content span is given OUTRIGHT rather than derived from the slide width
+# and a margin, because the template's margins are not symmetric: 9.5 mm on
+# the left, 22.9 mm on the right. Deriving it put every chart ~3 mm off.
+#   content band     y = 39.4 .. 130.7, 91.3 mm tall (title above, footnote below)
+deck:
+  slide_width_in:  10.0
+  slide_height_in:  5.625
+  margin_x_in:      0.374    #   9.5 mm - the LEFT margin only
+  content_width_in: 8.724    # 221.6 mm - 2 x 100.7 panel + 20.2 gutter
+  content_top_in:   1.551    #  39.4 mm - below the title placeholder
+  content_height_in: 3.594   #  91.3 mm - above the footnote line
+  gap_in:           0.795    #  20.2 mm between the two halves
+
+  # How many charts a slide carries is a property of the SIZE PRESET, not a
+  # layout choice: the add-in's picker names them "1/2" and "1/1", meaning one
+  # of two side by side, or one spanning the pair. Its earlier preset
+  # generations, still commented out in ASGGraf_BBVA, make that arithmetic:
+  #     4:3  1/2 (109x107)  ->  1/1 (218x107)   218 = 2 x 109
+  #     16:9 1/2 (100x 80)  ->  1/1 (218x 80)   218 = 2 x 100 + 18 gutter
+  #     WORD 1/2 ( 82x 65)  ->  1/1 (180x 65)   180 = 2 x  82 + 16 gutter
+  #
+  # NOTE the shipping row does NOT satisfy it: 2 x 85 = 170 > 140, and
+  # 2 x 75 = 150 > 117. Whatever the reason, the 1/2 - 1/1 SEMANTICS are not
+  # in doubt, so the count follows the name and not the millimetres.
+  per_slide:
+    word_half:   2
+    word_full:   1
+    slides_half: 2
+    slides_full: 1
+    slides16_9_half: 2
+    slides16_9_full: 1
+
+  # --- slide furniture, for presets whose chrome is "slide" ----------------
+  #
+  # Measured off 'Sistema Bancario Junio 2026.pptx' slides 8 and 14 (layout
+  # "sin logo y titulo alto"), which agree with each other to a tenth of a
+  # millimetre. All values are mm; the deck converts.
+  #
+  # The furniture is DRAWN rather than inherited from the .pptx. The template
+  # is a BBVA asset that is never committed (see bbva source/), so a deck that
+  # opened it could not run on a machine that lacks it. Every number that
+  # matters is here instead, which also makes it themeable.
+  #
+  # The template's own colours corroborate the palette: its scheme dk1 is
+  # 001391 (blue), lt1 FFFFFF (white), and its source text 46536D (slate).
+  slide:
+    title:                     # the slide's one-line message, above everything
+      x: 9.5
+      y: 7.2
+      w: 235.2
+      h: 10.7
+      size: 19
+      color: blue
+      placeholder: "XXX"       # the deck cannot know it: a human writes it
+    background: canvas         # without it the white panels are invisible
+    panel:                     # the white cards the charts sit on
+      y: 25.0
+      h: 108.2
+      fill: white
+      x: [9.5, 136.5]          # per slot; the two are NOT the same width
+      w: [114.5, 108.3]
+    caption:                   # CHART TITLE / (SUBTITLE), inside the panel
+      dx: 6.7                  # from the panel's left edge
+      dy: 5.2                  # from the panel's top
+      h: 10.5
+      size: 12
+      color: blue
+      bold: true
+      upper: true              # the decks set them in capitals
+      # The units line is its OWN paragraph, styled down: measured at 12pt
+      # bold over 10pt regular on every caption in Sistema Bancario slides 8
+      # and 14. Same colour, so the pair reads as one block.
+      sub_size: 10
+      sub_bold: false
+      min_size: 8              # a long caption shrinks to fit rather than
+                               # running through the rule, which never moves
+    rule:                      # the hairline under the caption
+      dy: 18.0
+      weight: 0.75
+      color: blue
+    chart:
+      dy: 21.0                 # from the panel's top, under the rule
+    source:                    # sits BELOW the panel, not inside it
+      dy: 4.1                  # from the panel's bottom edge
+      h: 4.8
+      size: 7
+      color: slate
+    page:                      # "p. N", bottom right
+      x: 232.9
+      y: 132.3
+      w: 14.0
+      h: 8.6
+      size: 8
+      color: ink
+      prefix: "p. "
+
+# Named export sizes, physical mm. Read out of the original add-in's own
+# picker (Addin_BBVA_2025.xlam, ASGGraf_BBVA.UserForm_Initialize), which is
+# the ground truth for the house style:
+#   WORD 1/2 (75x60)   WORD 1/1 (117x60)
+#   PPT/GSLIDES 1/2 (85x70)   PPT/GSLIDES 1/1 (140x75)
+
 # --- econcharts' OWN vocabulary ----------------------------------------------
 # Keys matplotlib does not name. Stroke weights and type sizes live in `rc:`
 # below, because matplotlib already names those; these have no rcParam and no

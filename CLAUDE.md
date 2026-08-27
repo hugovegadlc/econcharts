@@ -36,7 +36,7 @@ econcharts/
   theme.py         # theme engine: loads themes/*.yaml; es-PE formatters; named sizes
   render.py        # orchestration: spec -> Figure -> backend; framing; mark finalize
   batch.py         # batch documents: header cascade -> ChartJobs, fail-soft run
-  deck.py          # rendered PNGs -> .pptx (2 per slide, true physical size)
+  deck.py          # rendered PNGs -> .pptx; plain sheet, or the BBVA slide (chrome)
   cli.py           # econcharts build <batch.yaml> | render <spec.yaml> -o out.png
 themes/bbva.yaml   # reference house style — SINGLE SOURCE OF TRUTH for all form
 registry/          # (empty — future domain tokens: recessions, targets, events)
@@ -96,7 +96,9 @@ matplotlib's weak spot is label collision; econcharts handles it **deterministic
 
 ## Batch & deck & CLI
 - A batch = orchestration header (`data_root`, `output_dir`, `render` subset) + inheritable defaults (`theme`, `size`, `backend`, `date_label`: header → chart override) + `charts` keyed by `id`. Header validated up front; chart bodies validated lazily so one bad chart can't sink the batch (**fail-soft** — `run_jobs` records per-chart errors and continues). Paths resolve relative to the batch file. Outputs `<id>_<yyyymmdd>.<backend>`.
-- `econcharts build batch.yaml [--only ids] [-o DIR] [--force]` renders all + assembles a PPTX deck (2 charts per slide at true physical size via `deck.py`); asks once before overwriting. `econcharts render spec.yaml -o out.png [--size] [--backend]` is the single-chart shortcut. Non-zero exit if anything failed.
+- **`chrome` decides where a chart's words go, and it is a property of the SIZE preset, not a spec key** (`size_styles.<size>.chrome`). `chart` — the four original presets — draws title, units line and source inside the figure and the deck is a plain sheet of figures at true physical size. `slide` — the two 16:9 presets — renders the chart **bare** and `deck.py` sets its caption above a rule on a white panel, over a light-grey canvas, with a title placeholder, the source as a footnote and a page number. That is how BBVA decks are actually built (every chart measured in *Sistema Bancario* has no title of its own). The same YAML renders either way; only the surface the words land on moves.
+- The furniture is **drawn, not inherited from a .pptx** — the BBVA template is an asset this repo does not carry — so every number lives in the theme under `deck.slide`, in millimetres, measured off real slides. A long caption **shrinks** to `caption.min_size` rather than moving the rule, whose distance below the panel top is the house style. matplotlib measures text; python-pptx cannot, so the fit is estimated from character count (the Excel edition asks PowerPoint directly).
+- `econcharts build batch.yaml [--only ids] [-o DIR] [--force]` renders all + assembles a PPTX deck via `deck.py`; asks once before overwriting. `econcharts render spec.yaml -o out.png [--size] [--backend]` is the single-chart shortcut. Non-zero exit if anything failed.
 
 ## Ship (frozen exe)
 `ship/econcharts.spec` is the checked-in PyInstaller manifest (bundles `themes/`, pptx templates; excludes GUI toolkits); `ship/build.py` freezes, lays user-facing files (examples, manual.html, run.bat) at the bundle root, and zips to `~/econcharts_ship.zip`. Build from the project `.venv` (clean python.org Python — not Anaconda).

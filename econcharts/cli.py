@@ -86,11 +86,19 @@ def _build(args) -> int:
 
     # Assemble the successful PNGs into a deck named after the batch (2 per slide,
     # each placed at its true export size). Use the physical mm from the render.
-    deck_items = [(r.output_path, r.size_mm) for r, j in zip(results, jobs)
+    from econcharts.deck import DeckItem
+    deck_items = [DeckItem(image=r.output_path, size_mm=r.size_mm, size_name=j.size,
+                           title=j.body.get("title"), subtitle=j.body.get("subtitle"),
+                           source=j.body.get("source"))
+                  for r, j in zip(results, jobs)
                   if r.ok and r.output_path.suffix.lower() == ".png"]
     if deck_items:
         from econcharts.deck import build_deck
-        deck = build_deck(deck_items, deck_items[0][0].parent / f"{Path(args.batch).stem}.pptx")
+        # A `chrome: slide` preset needs the WORDS as well as the picture: the
+        # chart was rendered bare and the slide sets its caption and source.
+        deck = build_deck(deck_items,
+                          deck_items[0].image.parent / f"{Path(args.batch).stem}.pptx",
+                          theme=batch.theme or "bbva")
         print(f"  deck  -> {deck.name}")
 
     print(f"\n{len(results) - len(failed)} ok, {len(failed)} failed.")
