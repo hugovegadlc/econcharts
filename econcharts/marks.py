@@ -30,7 +30,6 @@ from econcharts.theme import value_decimals
 
 _Z_MARKER = 4.0
 _Z_LABEL = 5.0
-_MARKER_SIZE = 5
 _LABEL_FONTSIZE = 8
 
 
@@ -384,7 +383,10 @@ def perp_unit(ax, spec: PerpSpec):
 def _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_pt,
                         placed: list[PlacedMark], theme) -> None:
     if mark.marker:
-        (dot,) = ax.plot([xi], [yi], marker="o", markersize=_MARKER_SIZE, color=color,
+        # markersize comes from the theme (rc `lines.markersize`); passing one
+        # here would override every theme with a single hard-coded number,
+        # which is what it used to do.
+        (dot,) = ax.plot([xi], [yi], marker="o", color=color,
                          linestyle="none", zorder=_Z_MARKER)
         dot.set_in_layout(False)
         placed.append(PlacedMark(dot))

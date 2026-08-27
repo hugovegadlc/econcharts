@@ -1221,3 +1221,19 @@ def test_a_well_spaced_dual_axis_chart_is_left_alone():
     after = {t: (bb.y0 + bb.y1) / 2 for t, bb in _dual_axis([40.0, 10.0], [1.0])}
     assert before == after
     assert _any_overlap(_dual_axis([40.0, 10.0], [1.0])) == []
+
+
+def test_a_marks_dot_takes_its_size_from_the_theme():
+    """It was a hard-coded 5, so no theme could change it — while the Excel
+    edition already ships two themes that differ (bbva 7, bbva_bancos 4).
+    matplotlib names this, so it lives in `rc:` rather than under a shared key."""
+    def dot_size(theme_name):
+        spec = Spec(theme=theme_name, period="2024Q1:2024Q4",
+                    series=[{"name": "A", "type": "line",
+                             "mark": {"at": "last", "marker": True},
+                             "data": {"2024Q1": 1, "2024Q2": 2, "2024Q3": 3, "2024Q4": 4}}])
+        ax = render(spec).axes[0]
+        return next(l for l in ax.lines if l.get_marker() == "o").get_markersize()
+
+    assert dot_size("bbva") == pytest.approx(load_theme("bbva").rc["lines.markersize"])
+    assert dot_size("bbva") != dot_size("macro")   # a theme can differ, and does

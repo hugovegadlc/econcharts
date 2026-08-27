@@ -289,6 +289,11 @@ rc:
   ytick.major.pad:       2
 
   lines.linewidth:       2.0
+  # Diameter in points of the dot a `mark: {marker: true}` puts on its point.
+  # matplotlib names this, so it lives in rc: rather than under a shared key -
+  # the Excel edition says the same thing as format.series.marker_size. Measured
+  # against the source decks, the dot reads at roughly 2.5x the series stroke.
+  lines.markersize:      7
   lines.solid_capstyle:  round
 
   legend.frameon:        false

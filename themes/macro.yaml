@@ -117,6 +117,8 @@ rc:
   ytick.major.pad:       2
 
   lines.linewidth:       2.5            # ggplot linewidth 1.25 (~0.94 mm)
+  # Diameter in points of a mark's dot (matplotlib's own name for it).
+  lines.markersize:      6
   lines.solid_capstyle:  round
 
   legend.frameon:        false
