@@ -143,3 +143,19 @@ def test_tuples_are_still_accepted(tmp_path):
     img = _png(tmp_path, "c", "slides_half", title="T")
     deck = build_deck([(img, (85, 70))], tmp_path / "d.pptx")
     assert len(pptx.Presentation(str(deck)).slides) == 1
+
+
+def test_a_slide_holds_charts_of_one_preset_only(tmp_path):
+    """A `chrome: slide` chart swept onto a plain slide loses its words twice
+    over: it rendered bare, and the slide sets no caption for it. Found by the
+    gallery, where two 16:9 charts follow 27 slides_half ones."""
+    plain = _png(tmp_path, "p", "slides_half", title="Plano")
+    fancy = _png(tmp_path, "f", "slides16_9_half", title="Con chrome")
+    items = [DeckItem(image=plain, size_mm=(85, 70), size_name="slides_half", title="Plano"),
+             DeckItem(image=fancy, size_mm=(100, 80), size_name="slides16_9_half",
+                      title="Con chrome", source="BCRP")]
+    prs = pptx.Presentation(str(build_deck(items, tmp_path / "d.pptx", theme="bbva")))
+    assert len(prs.slides) == 2                      # not swept onto one
+    assert _texts(prs.slides[0]) == []               # the plain one keeps its own words
+    blob = "\n".join(_texts(prs.slides[1]))
+    assert "CON CHROME" in blob and "Fuente: BCRP" in blob

@@ -252,7 +252,12 @@ def build_deck(items: list, out_path: Union[str, Path],
     while i < len(items):
         size_name = items[i].size_name
         per_slide = int(theme.val(f"deck.per_slide.{size_name}", 2))
-        batch = items[i:i + per_slide]
+        # A slide holds charts of ONE preset. The chart that opens it decides
+        # how many it takes and whether it owes them chrome, so a chart of a
+        # different preset must start a new slide rather than be swept into
+        # this one: a `chrome: slide` chart landing on a plain slide renders
+        # bare AND gets no caption, losing its title and source entirely.
+        batch = [it for it in items[i:i + per_slide] if it.size_name == size_name]
         slide = prs.slides.add_slide(blank)
         if theme.chrome(size_name) == "slide":
             _draw_furniture(slide, theme, page, len(batch))
@@ -262,7 +267,7 @@ def build_deck(items: list, out_path: Union[str, Path],
             for slot, item in enumerate(batch):
                 _place_plain(slide, item, theme, slot, per_slide,
                              prs.slide_width, prs.slide_height)
-        i += per_slide
+        i += len(batch)
         page += 1
 
     out_path = Path(out_path)

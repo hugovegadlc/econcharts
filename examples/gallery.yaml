@@ -280,3 +280,35 @@ charts:
     series:
       - {name: Nivel (izq.), type: line, mark: {at: last, marker: true}, data: [70, 71, 72, 71, 73, 74, 75, 76]}
       - {name: Ratio (der.), type: line, axis: secondary, mark: {at: last, marker: true}, data: [3.85, 3.80, 3.76, 3.74, 3.76, 3.79, 3.82, 3.85]}
+
+  # ── the SLIDE carries the words, not the chart ───────────────────────────
+  # These two ask for a 16:9 preset, and those presets are the ones whose
+  # `chrome` is `slide`. So each renders BARE — no title, no units line, no
+  # source — and the deck sets them on the slide instead, in a caption above a
+  # rule on a white panel. Their PNGs look wordless on purpose; open the deck
+  # this batch builds to see where the words went.
+  #
+  # They sit last and adjacent so they share one slide: how many charts a slide
+  # carries is a property of the preset (`deck.per_slide`), and the chart that
+  # opens a slide decides for it. Their data is INLINE so that the Excel edition
+  # puts each on its own sheet, consecutively — over there charts are collected
+  # sheet by sheet, so two charts reading existing shared sheets would be pulled
+  # apart and land on half-empty slides.
+  - id: chrome_slide_inflacion
+    title: Inflación — Perú
+    subtitle: var. % anual del IPC
+    source: BCRP
+    size: slides16_9_half
+    period: 2021Q1:2024Q4
+    series:
+      - {name: Inflación total, type: line, mark: {at: last, marker: true}, data: [2.4, 2.6, 4.2, 6.4, 7.7, 7.9, 8.4, 8.5, 8.4, 7.9, 5.0, 3.2, 3.4, 3.0, 2.0, 2.0]}
+      - {name: Inflación subyacente, type: line, mark: {at: last, marker: true}, data: [1.8, 2.0, 2.6, 3.2, 3.8, 4.4, 5.4, 5.6, 5.9, 5.3, 4.1, 3.1, 3.0, 2.7, 2.5, 2.4]}
+
+  - id: chrome_slide_pbi
+    title: PBI real — Perú
+    subtitle: var. % anual
+    source: BCRP
+    size: slides16_9_half
+    period: 2022Q1:2024Q4
+    series:
+      - {name: PBI, type: bar, mark: all, data: [3.8, 3.5, 1.8, -0.5, -0.6, -0.5, -0.4, 1.4, 5.3, 3.6, 4.1, 3.3]}
