@@ -301,6 +301,14 @@ def _finalize_marks(ax, placed: list[_marks.PlacedMark], theme: Theme) -> None:
     #     which reads `perp.side` to pick the offset's direction.
     _marks.flip_end_label_onto_clear_side(ax, placed, renderer, theme)
 
+    # 1a-ter) a LONE mark on a dense chart: its label is wider than the gap
+    #     between points, so the two neighbours that chose its side no longer
+    #     describe what it has to clear. Re-decides over the label's own width
+    #     and places it past the curve's excursion there; sparse charts hold no
+    #     other point under the label and are left untouched. Retires the
+    #     PerpSpec of anything it places, so 1b skips it.
+    _marks.clear_lone_marks(ax, placed, renderer, theme)
+
     # 1b) above/below line labels: offset perpendicular to the line's local slope
     #     (final transform), by the label's own reach along that direction plus a
     #     constant gap — so the clearance is the same on flat and steep sections.

@@ -54,6 +54,11 @@ class PerpSpec:
     prev_pt: tuple | None
     next_pt: tuple | None
     side: str      # "above" | "below"
+    # The whole series, for `clear_lone_marks`: on a dense chart a label is
+    # wider than the gap between points, so its two neighbours no longer
+    # describe what it has to clear.
+    xs: tuple = ()
+    ys: tuple = ()
 
 
 @dataclass
@@ -117,7 +122,8 @@ def draw_line_marks(ax, line_series, decimals, placed: list[PlacedMark], theme) 
                 side = _single_point_side(yarr, i)
             prev_pt = (xarr[i - 1], yarr[i - 1]) if i > 0 else None
             next_pt = (xarr[i + 1], yarr[i + 1]) if i < len(yarr) - 1 else None
-            _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_pt, placed, theme)
+            _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_pt,
+                                placed, theme, xarr, yarr)
 
 
 def marked_values(series, periods, y) -> list[float]:
@@ -258,6 +264,84 @@ def flip_end_label_onto_clear_side(ax, placed: list["PlacedMark"], renderer, the
     return True
 
 
+def clear_lone_marks(ax, placed: list["PlacedMark"], renderer, theme) -> bool:
+    """Give a LONE mark's label the side and the clearance its own width asks
+    for, rather than the ones its two neighbours ask for.
+
+    `_single_point_side` looks at the points either side, and on most charts
+    that is the whole question: a label narrower than the gap between points
+    has nothing else within reach. It stops being the question when the chart
+    is dense. Measured on the Excel edition's reconstruction deck, an 86-point
+    monthly series in an 85mm panel gives ~2.3pt per category against a ~28pt
+    label — twelve points wide, so the label clears six on each side while the
+    rule looked at one.
+
+    The failures all had that shape: one series chose "above" for a point whose
+    previous neighbour was TWO units lower, while the curve climbed FIFTY-SEVEN
+    across the label's own width, and the line ran through the digits. The
+    labels that came out clean were the local maxima, which genuinely had
+    nothing above them — so the rule was not wrong, its window was.
+
+    Two things follow, and this does both:
+
+    * the side is the one the curve intrudes into less, over the label's width;
+    * the offset clears the furthest the curve reaches within that width, not a
+      fixed gap from the point — otherwise the right side still grazes it.
+
+    The density gate needs no constant. If no other point falls inside the
+    label's own width, the window holds nothing to weigh and the existing
+    answer stands, which is exactly the sparse case. So no chart that was
+    already right can move.
+
+    Shared-x points are left alone: they have their own rule, and the last
+    point of a two-series chart has `flip_end_label_onto_clear_side`. A lone
+    mark is left over precisely where no other rule applies — including at the
+    last point, where nothing else claims it.
+
+    Placing the label here retires its PerpSpec, so the perpendicular pass
+    downstream leaves it alone.
+
+    Returns True if it moved something (so the caller re-measures).
+    """
+    lone = [pm for pm in placed if pm.perp is not None and pm.perp.xs]
+    if not lone:
+        return False
+    counts: dict = {}
+    for pm in lone:
+        counts[round(pm.perp.xi, 6)] = counts.get(round(pm.perp.xi, 6), 0) + 1
+
+    to_px = ax.transData.transform
+    inv = ax.transData.inverted()
+    dpi72 = ax.figure.dpi / 72.0
+    gap = float(theme.val("format.marks.perp_gap", 3.0))
+    moved = False
+
+    for pm in lone:
+        if counts[round(pm.perp.xi, 6)] != 1:
+            continue
+        spec = pm.perp
+        bb = pm.artist.get_window_extent(renderer)      # centred on the point, unoffset
+        (xl, _), (xr, _) = inv.transform([(bb.x0, bb.y0), (bb.x1, bb.y0)])
+        half = abs(xr - xl) / 2.0
+
+        win = [y for x, y in zip(spec.xs, spec.ys)
+               if abs(float(x) - spec.xi) <= half and math.isfinite(float(y))]
+        if len(win) < 2:
+            continue                # nothing else under the label: sparse, leave it
+        hi, lo = max(win), min(win)
+        below = (spec.yi - lo) < (hi - spec.yi)         # ties keep "above"
+        y_ex = lo if below else hi
+
+        # Clear the curve's own excursion, measured in display space so the
+        # gap is constant on the page whatever the axis scale.
+        dy = (to_px((spec.xi, y_ex))[1] - to_px((spec.xi, spec.yi))[1]) / dpi72
+        half_h = (bb.height / 2) / dpi72
+        pm.artist.xyann = (0, dy + (gap + half_h) * (-1 if below else 1))
+        pm.perp = None                                   # placed; skip the perp pass
+        moved = True
+    return moved
+
+
 def decollide_across_axes(ax, placed: list["PlacedMark"],
                           ax2, placed2: list["PlacedMark"], theme) -> bool:
     """Separate end-point labels that belong to DIFFERENT value axes.
@@ -381,7 +465,7 @@ def perp_unit(ax, spec: PerpSpec):
 
 
 def _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_pt,
-                        placed: list[PlacedMark], theme) -> None:
+                        placed: list[PlacedMark], theme, xs=(), ys=()) -> None:
     if mark.marker:
         # markersize comes from the theme (rc `lines.markersize`); passing one
         # here would override every theme with a single hard-coded number,
@@ -399,7 +483,8 @@ def _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_p
             # offset set in render._finalize_marks (perpendicular to the slope,
             # using the FINAL transform); the PerpSpec carries what that needs.
             ann = _label(ax, text, (xi, yi), (0, 0), "center", "center", color)
-            placed.append(PlacedMark(ann, perp=PerpSpec(xi, yi, prev_pt, next_pt, side)))
+            placed.append(PlacedMark(ann, perp=PerpSpec(
+                xi, yi, prev_pt, next_pt, side, tuple(xs), tuple(ys))))
 
 
 def bar_mark(ax, mark, xi, value, color, decimals, theme, placed: list[PlacedMark]) -> None:
