@@ -341,6 +341,13 @@ def _finalize_marks(ax, placed: list[_marks.PlacedMark], theme: Theme) -> None:
         fig.draw_without_rendering()
         renderer = fig.canvas.get_renderer()
 
+    # 1d) a label may not sit on ANOTHER label of the same line. Last of the
+    #     placement passes, because it judges labels by where they ENDED UP:
+    #     every rule that can still move one has to have run.
+    if _marks.decollide_neighbour_marks(ax, placed, renderer, theme):
+        fig.draw_without_rendering()
+        renderer = fig.canvas.get_renderer()
+
     # (Other line-label crowding is handled by side selection in
     # marks.draw_line_marks — labels sit on the outer side of the curve.)
 

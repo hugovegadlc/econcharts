@@ -71,6 +71,10 @@ class PlacedMark:
     per-kind adjustments."""
 
     artist: object                       # matplotlib Text / Line2D
+    # Which series drew it. `placed` is a flat list, so without this there is no
+    # way to ask "are these two labels of the SAME line?" - which is the only
+    # pair `decollide_neighbour_marks` is willing to move.
+    series_key: object = None
     fit: SegmentFit | None = None        # stacked: hide if it doesn't fit
     perp: PerpSpec | None = None         # line: slope-perpendicular offset
     right_anchor: tuple | None = None    # (xi, yi): right-of-endpoint spreading
@@ -123,7 +127,7 @@ def draw_line_marks(ax, line_series, decimals, placed: list[PlacedMark], theme) 
             prev_pt = (xarr[i - 1], yarr[i - 1]) if i > 0 else None
             next_pt = (xarr[i + 1], yarr[i + 1]) if i < len(yarr) - 1 else None
             _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_pt,
-                                placed, theme, xarr, yarr)
+                                placed, theme, xarr, yarr, id(series))
 
 
 def marked_values(series, periods, y) -> list[float]:
@@ -239,28 +243,51 @@ def flip_end_label_onto_clear_side(ax, placed: list["PlacedMark"], renderer, the
     lower = next((pm for pm in grp if pm.perp.side == "below"), None)
     if upper is None or lower is None:
         return False
+
+    # The UPPER label of a series that FALLS into the point, then the LOWER of
+    # one that RISES into it. A series cannot do both, so at most one can fire —
+    # but both move into the same space between the two endpoints, so were both
+    # to fire they would cross. Only one runs.
+    for pm, other, arrives_from_above, clear_side in (
+            (upper, lower, True, "below"),
+            (lower, upper, False, "above")):
+        if _end_stroke_intrudes(ax, pm, other, renderer, theme, arrives_from_above):
+            # PerpSpec is frozen; PlacedMark is not, so swap in a new spec.
+            pm.perp = replace(pm.perp, side=clear_side)
+            return True
+    return False
+
+
+def _end_stroke_intrudes(ax, pm, other, renderer, theme, arrives_from_above: bool) -> bool:
+    """Does this end label sit on its own incoming stroke, with room to move?
+
+    `arrives_from_above` selects which half of the mirror is being asked about:
+    the upper label of a series FALLING into its last point, or the lower label
+    of one RISING into it. Once the sign is factored out the geometry is
+    identical, which is why they are one function — the Excel edition met these
+    as two separate rules months apart and only then saw they were the same one.
+    """
     # A padded `period` frame can leave the neighbour blank; without a real one
     # there is nothing to measure, so leave the label where it is.
-    if not all(math.isfinite(float(v)) for v in upper.perp.prev_pt):
+    if not all(math.isfinite(float(v)) for v in pm.perp.prev_pt):
         return False
 
     to_px = ax.transData.transform
-    ux, uy = to_px((upper.perp.xi, upper.perp.yi))
-    _, ly = to_px((lower.perp.xi, lower.perp.yi))
-    prev_x, prev_y = to_px(upper.perp.prev_pt)
+    x, y = to_px((pm.perp.xi, pm.perp.yi))
+    _, other_y = to_px((other.perp.xi, other.perp.yi))
+    prev_x, prev_y = to_px(pm.perp.prev_pt)
 
-    fall = prev_y - uy                       # display y grows upward
-    reach = ux - prev_x
-    if fall <= 0 or reach <= 0:
-        return False                         # rises into the point, or no room to measure
-    bb = upper.artist.get_window_extent(renderer)
-    intrusion = fall * min(1.0, (bb.width / 2) / reach)
+    # how far the stroke travels toward the label's OWN side; display y grows up
+    travel = (prev_y - y) if arrives_from_above else (y - prev_y)
+    reach = x - prev_x
+    if travel <= 0 or reach <= 0:
+        return False                    # arrives from the clear side, or nothing to measure
+    bb = pm.artist.get_window_extent(renderer)
+    intrusion = travel * min(1.0, (bb.width / 2) / reach)
     if intrusion < bb.height / 2:
-        return False                         # the stroke never reaches the label
-    if abs(uy - ly) < spread_pitch(theme, ax.figure.dpi / 72.0, bb.height):
-        return False                         # no room between the two endpoints
-    # PerpSpec is frozen; PlacedMark is not, so swap in a new spec.
-    upper.perp = replace(upper.perp, side="below")
+        return False                    # the stroke never reaches the label
+    if abs(y - other_y) < spread_pitch(theme, ax.figure.dpi / 72.0, bb.height):
+        return False                    # no room between the two endpoints
     return True
 
 
@@ -339,6 +366,78 @@ def clear_lone_marks(ax, placed: list["PlacedMark"], renderer, theme) -> bool:
         pm.artist.xyann = (0, dy + (gap + half_h) * (-1 if below else 1))
         pm.perp = None                                   # placed; skip the perp pass
         moved = True
+    return moved
+
+
+def _boxes_overlap(a, b, slack: float) -> bool:
+    """Touching edges are not a collision, and neither is a hairline of rounding."""
+    return (min(a.x1, b.x1) - max(a.x0, b.x0) > slack
+            and min(a.y1, b.y1) - max(a.y0, b.y0) > slack)
+
+
+def decollide_neighbour_marks(ax, placed: list["PlacedMark"], renderer, theme) -> bool:
+    """Two labels of ONE line, at different points, that overlap each other.
+
+    Every other rule here asks where a label sits relative to the CURVE. None
+    asks where it sits relative to another LABEL, and on a chart whose marked
+    points are closer together than a label is wide that is the collision that
+    actually happens. Measured in the Excel edition across a real deck: five
+    such pairs, the worst being two labels both reading 34.8 overlapping by
+    16 x 15pt — one almost exactly on top of the other.
+
+    The fix is the one a person would make: put the second one on the other
+    side. Here that is a reflection of the annotation's offset through its own
+    point, which works whichever pass placed it — the perpendicular offset or
+    `clear_lone_marks`. The Excel edition re-runs its placement routine for the
+    new side instead; reflecting is the approximation Python can make cheaply,
+    and it is checked rather than trusted.
+
+    Conservative on purpose, and the conditions are the ones that cost the Excel
+    edition a round to get right:
+
+    * only the LATER label of a pair moves;
+    * the flip is kept only if it leaves the label clear of EVERY other label of
+      that series, not just the one it collided with — checking only the pair is
+      how moving one label off its neighbour landed it on a third;
+    * labels in the right-hand column belong to `_spread_right_labels`, and
+      anything that is not an annotation cannot be offset, so both are skipped.
+
+    The new box is computed rather than re-measured: an offset in points moves
+    the box by exactly that many points, so reflecting `(ox, oy)` translates it
+    by `(-2ox, -2oy)`. That keeps this to one draw instead of one per candidate.
+
+    Returns True if it moved something (so the caller re-measures).
+    """
+    dpi72 = ax.figure.dpi / 72.0
+    groups: dict = {}
+    for pm in placed:
+        if pm.series_key is None or pm.right_anchor is not None:
+            continue
+        if not hasattr(pm.artist, "xyann") or not pm.artist.get_visible():
+            continue
+        groups.setdefault(pm.series_key, []).append(pm)
+
+    moved = False
+    for grp in groups.values():
+        if len(grp) < 2:
+            continue
+        box = {id(pm): pm.artist.get_window_extent(renderer) for pm in grp}
+        for i in range(len(grp)):
+            for j in range(i + 1, len(grp)):
+                a, b = grp[i], grp[j]
+                if not _boxes_overlap(box[id(a)], box[id(b)], dpi72):
+                    continue
+                ox, oy = b.artist.xyann
+                if ox == 0 and oy == 0:
+                    continue                      # nothing to reflect
+                dx, dy = -2.0 * ox * dpi72, -2.0 * oy * dpi72
+                flipped = box[id(b)].translated(dx, dy)
+                if any(_boxes_overlap(flipped, box[id(o)], dpi72)
+                       for o in grp if o is not b):
+                    continue                      # lands on something else
+                b.artist.xyann = (-ox, -oy)
+                box[id(b)] = flipped
+                moved = True
     return moved
 
 
@@ -465,7 +564,7 @@ def perp_unit(ax, spec: PerpSpec):
 
 
 def _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_pt,
-                        placed: list[PlacedMark], theme, xs=(), ys=()) -> None:
+                        placed: list[PlacedMark], theme, xs=(), ys=(), key=None) -> None:
     if mark.marker:
         # markersize comes from the theme (rc `lines.markersize`); passing one
         # here would override every theme with a single hard-coded number,
@@ -478,12 +577,13 @@ def _draw_one_line_mark(ax, mark, xi, yi, color, decimals, side, prev_pt, next_p
     if text is not None:
         if side == "right":
             ann = _label(ax, text, (xi, yi), (6, 0), "left", "center", color)
-            placed.append(PlacedMark(ann, right_anchor=(xi, yi)))  # render may spread + add leaders
+            # render may spread + add leaders
+            placed.append(PlacedMark(ann, series_key=key, right_anchor=(xi, yi)))
         else:
             # offset set in render._finalize_marks (perpendicular to the slope,
             # using the FINAL transform); the PerpSpec carries what that needs.
             ann = _label(ax, text, (xi, yi), (0, 0), "center", "center", color)
-            placed.append(PlacedMark(ann, perp=PerpSpec(
+            placed.append(PlacedMark(ann, series_key=key, perp=PerpSpec(
                 xi, yi, prev_pt, next_pt, side, tuple(xs), tuple(ys))))
 
 

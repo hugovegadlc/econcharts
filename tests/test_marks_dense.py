@@ -80,3 +80,58 @@ def test_the_fixture_is_actually_dense():
     per_point_px = abs(x1 - x0)
     assert width_px > 3 * per_point_px, (
         f"label {width_px:.1f}px spans only {width_px / per_point_px:.1f} points")
+
+def _two_marks_close_together():
+    """Two marked points a few categories apart carrying the SAME value, on a
+    FLAT stretch — the shape that put two labels both reading 34.8 almost
+    exactly on top of each other in a real deck.
+
+    The flatness is the point, and a first attempt at this fixture missed it. On
+    a wandering curve the two marks get DIFFERENT windows, so `clear_lone_marks`
+    sends them to different sides and they separate without any help. Only where
+    the curve is level either side do both windows come out symmetric, both
+    labels go above, and they land on each other.
+    """
+    vals = list(_VALUES)
+    i, j = 40, 44
+    for k in range(i - 4, j + 6):
+        vals[k] = 3050.0
+    per = [_PERIODS[i], _PERIODS[j]]
+    return Spec(period=f"{_PERIODS[0]}:{_PERIODS[-1]}",
+                series=[{"name": "Serie", "type": "line",
+                         "data": dict(zip(_PERIODS, vals)),
+                         "mark": {"at": per, "decimals": 0, "marker": True}}])
+
+
+def test_two_labels_of_one_line_do_not_sit_on_each_other():
+    """Every other rule here is about a label and the CURVE. This is the one
+    about a label and its neighbour, and nothing else in the suite would see it."""
+    fig = render(_two_marks_close_together(), size="slides_half")
+    fig.draw_without_rendering()
+    ax, r = fig.axes[0], fig.canvas.get_renderer()
+    boxes = [(t.get_text(), t.get_window_extent(r))
+             for t in ax.texts if t.get_text().strip()]
+    assert len(boxes) == 2, f"fixture should mark exactly two points, got {len(boxes)}"
+    (ta, a), (tb, b) = boxes
+    ox = min(a.x1, b.x1) - max(a.x0, b.x0)
+    oy = min(a.y1, b.y1) - max(a.y0, b.y0)
+    assert not (ox > 1 and oy > 1), (
+        f"{ta!r} and {tb!r} overlap by {ox:.1f} x {oy:.1f}px")
+
+
+def test_the_fixture_would_collide_without_the_rule():
+    """Guards the test above: the two labels must genuinely be close enough to
+    collide, or it passes for the wrong reason. Their POINTS are ~9px apart
+    while each label is ~30px wide, so placing both on one side must overlap."""
+    fig = render(_two_marks_close_together(), size="slides_half")
+    fig.draw_without_rendering()
+    ax, r = fig.axes[0], fig.canvas.get_renderer()
+    widths = [t.get_window_extent(r).width for t in ax.texts if t.get_text().strip()]
+    curve = max((a for a in ax.lines if len(a.get_xdata()) > 2),
+                key=lambda a: len(a.get_xdata()))
+    xs = curve.get_xdata()
+    gap = abs(ax.transData.transform((xs[44], 0))[0]
+              - ax.transData.transform((xs[40], 0))[0])
+    assert min(widths) > gap, (
+        f"labels are {min(widths):.1f}px wide but their points are {gap:.1f}px "
+        f"apart - the fixture is no longer dense enough to test anything")
