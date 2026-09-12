@@ -19,7 +19,7 @@ Automated production of publication-quality economic charts from a minimal, subs
 ## Status (feature-complete core; version = pyproject.toml)
 Done: line/bar/area/stacked (+ combinations, secondary axis), per-series marks with deterministic label placement, per-series bar `highlight` (emphasis recoloring), hline/vline/span/band annotations, adaptive daily→yearly date axis, authoritative `period` framing with `start`/`end` tokens, Excel + inline data, bbva theme, named export sizes, batch documents → figures + PPTX deck, CLI, frozen Windows exe (ship/), 192 tests incl. golden images.
 
-Backlog (build in this order when asked): domain registry (`recessions:`/`target:`/event marks — `registry/` dir exists but is empty; tokens are YAML data, not code), polished svg/pdf backends (`svg.fonttype: "none"` for LaTeX), gsheet/db resolvers (db hits tsdb-api at `db.simgol.net`), `fan` chart type (PyBEAR forecast bands), facets, slim bundle (drop scipy), AI authoring layer **last**.
+Backlog (build in this order when asked): domain registry (`recessions:`/`target:`/event marks — `registry/` dir exists but is empty; tokens are YAML data, not code), gsheet/db resolvers (db hits tsdb-api at `db.simgol.net`), `fan` chart type (PyBEAR forecast bands), facets, slim bundle (drop scipy), AI authoring layer **last**.
 
 ## Pipeline
 `YAML spec → pydantic validate (spec.py) → resolve data + frame (data.py, render._resolve_framed) → matplotlib render → png | svg | pdf` — and at the batch level: `batch.yaml → per-chart jobs (fail-soft) → figures + .pptx deck`.
@@ -92,7 +92,7 @@ matplotlib's weak spot is label collision; econcharts handles it **deterministic
 
 ## Renderer & output
 - One `render(spec, size) -> Figure`; `save(fig, out, backend)` infers the backend from the suffix. **No `bbox_inches="tight"`** — the figure must save at its exact named physical size; constrained layout fits content *within* the fixed figsize instead.
-- `png` (Google Slides): dpi=300, transparent. `svg`/`pdf` are registered but unpolished (svg still needs `svg.fonttype: "none"` for LaTeX text matching).
+- `png` (Google Slides): dpi=300, transparent. `svg`/`pdf` are DONE, not merely registered: `_BACKEND_RC` applies `svg.fonttype: "none"` (text stays selectable and LaTeX-matchable) and `pdf.fonttype: 42` (fonts embedded, no Type-3 bitmaps), inside an `rc_context` at savefig time so the settings never leak across a batch run. This file listed them as backlog long after they shipped.
 - Annotation mapping: `span`→`axvspan`, `band`→`axhspan` (label auto-placed in the widest clear stretch), `vline`→`axvline`, `hline`→`axhline`.
 - Layering: fills behind bars behind lines (`Z_AREA < Z_BAR < Z_LINE`), annotation fills below / vlines above series, labels on top.
 
