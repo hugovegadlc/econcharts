@@ -82,13 +82,22 @@ legend:
 
 # --- annotation form vocabulary (the small grey/orange/blue set a spec picks
 #     from) -> theme colors, per role. Values are color NAMES. ------------------
-# Fan charts: the alpha of ONE uncertainty interval. Nested fills compound, so
-# three intervals read 0.18 / 0.33 / 0.45 from the outside in and no ramp needs
-# enumerating - which matters because how many intervals a fan has is the
-# author's choice. Lower than `annotations.fill_alpha` (0.25) on purpose: that
-# one is drawn once, these stack.
+# Fan charts: how dark ONE uncertainty interval's fill is. Nested fills compound,
+# so at `medium` three intervals read 0.18 / 0.33 / 0.45 from the outside in and
+# no ramp needs enumerating - which matters because how many intervals a fan has
+# is the author's choice.
+#
+# A NAMED SET, not one value, because the strength a chart needs depends on its
+# content: the outermost fill always composites at exactly this alpha, so a fan
+# with a single interval renders at the lightest step and can disappear where a
+# three-interval fan reads well. The house decides what soft/medium/strong mean;
+# the spec picks one with `shade_strength`.
+#
+# All are below `annotations.fill_alpha` (0.25) on purpose: that one is drawn
+# once, these stack.
 fan:
-  alpha: 0.18
+  strength: medium                          # when a spec does not choose
+  strengths: {soft: 0.12, medium: 0.18, strong: 0.40}
 
 annotations:
   line:   {grey: slate, orange: orange, blue: blue}        # reference lines

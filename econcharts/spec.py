@@ -217,6 +217,13 @@ class Series(BaseModel):
     # better when the bands recede from the line rather than restating it.
     # Omitted, the fills take the series color.
     shade: Optional[str] = None
+    # Fan series only: how dark one interval's fill is, by theme name
+    # (`soft`/`medium`/`strong` in bbva). A selection from a theme-named set,
+    # not a raw alpha — but it lives in the SPEC because the strength a fan
+    # needs depends on its content: the outermost fill always composites at
+    # exactly this alpha, so a single-interval fan renders at the lightest step
+    # and can vanish where a three-interval fan reads well.
+    shade_strength: Optional[str] = None
     # Form overrides. `color` pins the series to a theme palette color by NAME (not
     # a raw hex — validated against the theme at render); `line` switches the stroke
     # style; `width` overrides the stroke width in points. All three are optional —
@@ -266,9 +273,10 @@ class Series(BaseModel):
         if self.intervals and self.type != "fan":
             raise ValueError(
                 f"series {self.name!r}: `intervals` is only for fan series, not {self.type!r}")
-        if self.shade is not None and self.type != "fan":
-            raise ValueError(
-                f"series {self.name!r}: `shade` is only for fan series, not {self.type!r}")
+        for key in ("shade", "shade_strength"):
+            if getattr(self, key) is not None and self.type != "fan":
+                raise ValueError(
+                    f"series {self.name!r}: `{key}` is only for fan series, not {self.type!r}")
         if self.intervals:
             confs = [iv.conf for iv in self.intervals]
             if len(set(confs)) != len(confs):

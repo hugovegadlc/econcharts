@@ -133,3 +133,51 @@ def test_the_fan_opens_from_the_last_point_without_an_interval():
     assert max(at_x0) - min(at_x0) == pytest.approx(0.0, abs=1e-9), (
         f"the fan should open from a point on the central path, but starts "
         f"{max(at_x0) - min(at_x0):.3f} wide")
+
+
+def _composite(fig):
+    """Each fill composited over white, in draw order — what the eye actually sees."""
+    import numpy as np
+    cum, out = np.ones(3), []
+    for coll in fig.axes[0].collections:
+        rgba = coll.get_facecolor()[0]
+        a = coll.get_alpha() if coll.get_alpha() is not None else rgba[3]
+        cum = cum * (1 - a) + np.array(rgba[:3]) * a
+        out.append(tuple(round(v * 255) for v in cum))
+    return out
+
+
+def test_a_lone_interval_renders_at_the_lightest_step():
+    """Not a bug, a consequence: nested fills compound, so the OUTERMOST always
+    composites at exactly one alpha and a fan with one interval is all outermost.
+    Pinned because it is the surprise that justifies `shade_strength` existing."""
+    spec = _fan([_iv(90, 2.0, 4.0)])
+    spec.series[0].shade = "lightblue"
+    lone = _composite(render(spec, size="slides_half"))
+    spec3 = _fan([_iv(90, 2.0, 4.0), _iv(60, 2.5, 3.5), _iv(30, 2.8, 3.2)])
+    spec3.series[0].shade = "lightblue"
+    ramp = _composite(render(spec3, size="slides_half"))
+    assert lone[0] == ramp[0], "a lone interval must match the outermost of a ramp"
+    assert ramp[-1][0] < ramp[0][0], "and the ramp must darken inward"
+
+
+def test_shade_strength_is_a_selection_from_the_theme():
+    spec = _fan([_iv(90, 2.0, 4.0)])
+    spec.series[0].shade = "lightblue"
+    default = _composite(render(spec, size="slides_half"))[0]
+    spec.series[0].shade_strength = "strong"
+    strong = _composite(render(spec, size="slides_half"))[0]
+    assert strong[0] < default[0], f"`strong` must darken the fill: {strong} vs {default}"
+
+
+def test_an_unknown_strength_names_the_ones_that_exist():
+    spec = _fan([_iv(90, 2.0, 4.0)])
+    spec.series[0].shade_strength = "extremo"
+    with pytest.raises(RenderError, match="soft"):
+        render(spec, size="slides_half")
+
+
+def test_shade_strength_is_refused_on_anything_but_a_fan():
+    with pytest.raises(SpecError, match="only for fan series"):
+        Spec.from_dict({"series": [{"name": "I", "type": "line", "data": [1, 2],
+                                    "shade_strength": "strong"}]})

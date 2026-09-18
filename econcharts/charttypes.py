@@ -193,7 +193,7 @@ class FanType(ChartType):
     defer_marks = True   # the central path is a line; marks go through draw_line_marks
 
     def draw(self, ax, series, x, y, periods, color, ctx, state, theme, bands=None) -> Geom:
-        alpha = float(theme.val("fan.alpha", 0.18))
+        alpha = _fan_alpha(theme, series.shade_strength)
         fill_color = theme.resolve_color(series.shade) if series.shade else color
         for _conf, lo, hi in (bands or ()):
             lo, hi = _anchor_to_central(lo, hi, y)
@@ -206,6 +206,28 @@ class FanType(ChartType):
         draw_line(ax, x, y, color, series.legend_label, ctx, (0, 1),
                   LINESTYLES[series.line], linewidth=series.width)
         return None
+
+
+_FAN_STRENGTHS = {"soft": 0.12, "medium": 0.18, "strong": 0.40}
+
+
+def _fan_alpha(theme, name: Optional[str]) -> float:
+    """One interval's fill alpha, chosen from the theme's named set.
+
+    A selection rather than a raw number, the way `color: orange` is — the house
+    decides what `strong` means. It is a SPEC key rather than a theme-only value
+    because the strength a fan needs depends on its content: nested fills
+    compound, so the outermost always composites at exactly this alpha and a
+    single-interval fan renders at the lightest step of a ramp it never gets.
+    """
+    table = theme.val("fan.strengths", None) or _FAN_STRENGTHS
+    name = name or theme.val("fan.strength", "medium")
+    try:
+        return float(table[name])
+    except (KeyError, TypeError):
+        raise ChartTypeError(
+            f"unknown shade strength {name!r}; the theme offers "
+            f"{', '.join(sorted(table))}") from None
 
 
 def _anchor_to_central(lo, hi, y):

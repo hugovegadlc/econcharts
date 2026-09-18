@@ -52,6 +52,7 @@ with errors naming the offending key.
 | `width` | float? | stroke width in points; **line series only**; default = theme rc |
 | `intervals` | list | uncertainty intervals; **fan series only**, ≥1 — see **Fan intervals** |
 | `shade` | string? | theme colour **name** for the interval fills; **fan series only**; default = the series colour |
+| `shade_strength` | string? | how dark one fill is, by theme name (`soft`\|`medium`\|`strong`); **fan series only** |
 
 **Combination by `type`** (the type *is* the combine rule): multiple `bar` group
 side-by-side (dodged); multiple `stacked` stack (negatives downward); `area` fill and
@@ -92,8 +93,12 @@ A fan is a central path plus nested uncertainty intervals: **one line and N fill
   edge reads as a step in the data rather than the start of a projection. Nothing to
   do when the intervals start at the frame's first period.
 * **`shade` picks the fill colour** by theme name, so the bands can recede from the
-  central path instead of restating it. A pale shade gives a subtler ramp; `fan.alpha`
-  in the theme is the one lever if it needs more contrast.
+  central path instead of restating it.
+* **`shade_strength` picks how dark one fill is**, from the theme's named set. It is a
+  spec key rather than theme-only because the strength a fan needs depends on its
+  content: nested fills compound, so the *outermost* always composites at exactly this
+  alpha and a **single-interval fan renders at the lightest step** of a ramp it never
+  gets. A lone confidence band on a pale `shade` is the case to reach for `strong`.
 * **Shading is not configurable per interval.** Nested fills at one theme alpha
   compound, so the ramp darkens toward the centre whatever the number of intervals.
 * `mark` and the legend apply to the **central path only**.
