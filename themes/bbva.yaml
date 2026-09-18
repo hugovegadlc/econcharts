@@ -82,6 +82,14 @@ legend:
 
 # --- annotation form vocabulary (the small grey/orange/blue set a spec picks
 #     from) -> theme colors, per role. Values are color NAMES. ------------------
+# Fan charts: the alpha of ONE uncertainty interval. Nested fills compound, so
+# three intervals read 0.18 / 0.33 / 0.45 from the outside in and no ramp needs
+# enumerating - which matters because how many intervals a fan has is the
+# author's choice. Lower than `annotations.fill_alpha` (0.25) on purpose: that
+# one is drawn once, these stack.
+fan:
+  alpha: 0.18
+
 annotations:
   line:   {grey: slate, orange: orange, blue: blue}        # reference lines
   fill:   {grey: grey,  orange: orange, blue: lightblue}   # span/band shading

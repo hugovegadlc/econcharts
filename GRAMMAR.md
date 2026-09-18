@@ -42,7 +42,7 @@ with errors naming the offending key.
 |-----|------|-------|
 | `name` | string | **required** — identity + default legend text |
 | `data` | string \| list \| map | **required** — see **Data** |
-| `type` | `line`\|`bar`\|`area`\|`stacked` | **required**, no default |
+| `type` | `line`\|`bar`\|`area`\|`stacked`\|`fan` | **required**, no default |
 | `axis` | `primary`\|`secondary` | default `primary` |
 | `label` | string? | overrides the legend display name (default = `name`) |
 | `mark` | map \| shorthand | data-label marks — see **Mark** |
@@ -50,11 +50,47 @@ with errors naming the offending key.
 | `color` | string? | selects a **theme palette color by name** (not hex) |
 | `line` | `solid`\|`dashed`\|`dotted` | stroke style; **line series only**; default `solid` |
 | `width` | float? | stroke width in points; **line series only**; default = theme rc |
+| `intervals` | list | uncertainty intervals; **fan series only**, ≥1 — see **Fan intervals** |
 
 **Combination by `type`** (the type *is* the combine rule): multiple `bar` group
 side-by-side (dodged); multiple `stacked` stack (negatives downward); `area` fill and
 stack; `line` are smoothed curves drawn on top. Mixing is allowed (e.g. stacked bars +
-a total line).
+a total line). A `fan` combines with anything and stacks with nothing — its fills sit
+behind every other layer.
+
+## Fan intervals (`intervals`, fan series only)
+A fan is a central path plus nested uncertainty intervals: **one line and N fills**.
+`data` holds the central path; each interval is a fill *between two curves*.
+
+| key | type | notes |
+|-----|------|-------|
+| `conf` | number | **required** — the probability inside the interval, as a **percentage** (`90`, not `0.9`) |
+| `lo` | string \| list \| map | **required** — the lower curve; same **Data** grammar as `data` |
+| `hi` | string \| list \| map | **required** — the upper curve |
+
+```yaml
+- name: Inflación
+  type: fan
+  data: [3.1, 3.0, 2.8, 2.6]
+  intervals:
+    - {conf: 90, lo: [null, null, 2.3, 1.9], hi: [null, null, 2.9, 3.1]}
+    - {conf: 60, lo: [null, null, 2.4, 2.1], hi: [null, null, 2.8, 2.9]}
+```
+
+* **`lo` and `hi` are independent**, so a skewed distribution needs nothing special —
+  the interval is not required to be centred on `data`.
+* **Order does not matter.** Intervals are drawn widest-first, by `conf`. Their
+  measured widths are then checked against that order: a 90% interval that does not
+  contain the 60% one is refused, because the narrower fill would simply vanish under
+  the wider one and no reader could see the mistake.
+* **There is no "forecast" concept.** Leading `null`s in `lo`/`hi` leave the fills
+  empty over history, which is how a fan starts at a projection origin. A fan over the
+  whole sample — an estimate with confidence bands — is the same object with no nulls.
+* **Shading is not configurable per interval.** Nested fills at one theme alpha
+  compound, so the ramp darkens toward the centre whatever the number of intervals.
+* `mark` and the legend apply to the **central path only**.
+* Values ≤ 0 or > 100 are refused; so is anything below 1, since `0.9` is far more
+  likely to mean 90% than a 0.9% interval.
 
 ## Mark (per-series data labels)
 | key | type | notes |

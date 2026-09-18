@@ -31,8 +31,8 @@ charts:
   date axis that picks the right label granularity for the span and width.
 - **Authoritative framing.** `period` is the axis window (with `start`/`end` tokens
   that track the data); missing values leave clean gaps for forecast overlays.
-- **Chart types.** `line` · `bar` · `area` · `stacked` (and combinations — e.g. stacked
-  contributions with a total line).
+- **Chart types.** `line` · `bar` · `area` · `stacked` · `fan` (and combinations — e.g.
+  stacked contributions with a total line, or a projection with uncertainty bands).
 - **Named output sizes.** Physical millimetres, not pixels: one spec renders to a
   Word column, a slide, or a full-width figure, and type and stroke follow the
   target rather than scaling with it.

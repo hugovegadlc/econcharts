@@ -189,11 +189,22 @@ def _resolve_framed(spec: Spec, data_root):
     wspec = parse_window_spec(spec.period) if spec.period else None
     resolver = DataResolver(data_root=data_root)
 
+    # A fan's intervals resolve like any other ref, under synthetic names, so
+    # the long-df contract holds for them and they are framed and clipped with
+    # everything else. They count toward the sample's extent too: a fan whose
+    # bands run past the central path still has to fit inside `period: …:end`.
+    extra = [(charttypes.fan_band_name(s.name, k, side), getattr(iv, side))
+             for s in spec.series if s.intervals
+             for k, iv in enumerate(s.intervals)
+             for side in ("lo", "hi")]
+
     # Phase 1: series with intrinsic periods (refs + inline {period: value} maps).
     natural: dict[str, pd.DataFrame] = {
         s.name: resolver.resolve_series(s)
         for s in spec.series if not isinstance(s.data, list)
     }
+    natural.update({name: resolver.resolve_named(name, data)
+                    for name, data in extra if not isinstance(data, list)})
     # The sample's first/last period = the min/max across dated series (NOT any one
     # series' own first/last point — that distinction matters for `mark: last`).
     dated = [df for df in natural.values() if not df.empty]
@@ -205,6 +216,8 @@ def _resolve_framed(spec: Spec, data_root):
     resolver.window = window
     frames = [natural[s.name] if s.name in natural else resolver.resolve_series(s)
               for s in spec.series]
+    frames += [natural[name] if name in natural else resolver.resolve_named(name, data)
+               for name, data in extra]
     long_df = pd.concat(frames, ignore_index=True)
     return clip_to_window(long_df, window), window, resolver.series_decimals
 
@@ -255,7 +268,9 @@ def _draw_group(ax, items, long_df: pd.DataFrame, theme: Theme,
             raise RenderError(f"series {s.name!r}: {e}") from None
         ctype = charttypes.chart_type(s.type)
         try:
-            geom = ctype.draw(ax, s, x, y, periods, color, ctx, state, theme)
+            # None for everything but a fan, so this stays type-blind.
+            bands = charttypes.fan_bands(long_df, s, periods)
+            geom = ctype.draw(ax, s, x, y, periods, color, ctx, state, theme, bands)
         except (charttypes.ChartTypeError, ThemeError) as e:
             raise RenderError(f"series {s.name!r}: {e}") from None
         if s.mark is not None:

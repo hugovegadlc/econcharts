@@ -21,7 +21,7 @@ from pydantic import (
     model_validator,
 )
 
-SeriesType = Literal["line", "bar", "area", "stacked"]
+SeriesType = Literal["line", "bar", "area", "stacked", "fan"]
 Axis = Literal["primary", "secondary"]
 LineStyle = Literal["solid", "dashed", "dotted"]  # line series stroke override
 
@@ -157,6 +157,45 @@ class HighlightSpec(BaseModel):
     _coerce_at = field_validator("at", mode="before")(_coerce_token_or_list)
 
 
+class FanInterval(BaseModel):
+    """One uncertainty interval of a fan: the fill between two curves.
+
+    `lo` and `hi` are independent refs, which is what makes a SKEWED forecast
+    distribution free — nothing requires the interval to be centred on the
+    central path.
+
+    `conf` is the probability inside it, as a PERCENTAGE: an interval running
+    from the 5th to the 95th percentile is `conf: 90`. It is required, and it
+    does real work rather than documenting — intervals are drawn widest-first
+    and their measured widths are checked against the order `conf` declares, so
+    a swapped `lo`/`hi` or a mispointed column is refused instead of vanishing
+    under a wider band.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    conf: float
+    lo: Union[str, InlineData]
+    hi: Union[str, InlineData]
+
+    @field_validator("conf")
+    @classmethod
+    def _conf_is_a_percentage(cls, v):
+        if not 0 < v <= 100:
+            raise ValueError(f"`conf` is a percentage in (0, 100]; got {v}")
+        if v < 1:
+            # 0.9 is a legal 0.9% interval and is almost certainly meant as 90%.
+            raise ValueError(f"`conf` is a percentage, not a fraction: write 90, not {v}")
+        return v
+
+    @field_validator("lo", "hi", mode="before")
+    @classmethod
+    def _coerce_map_keys(cls, v):
+        if isinstance(v, dict):
+            return {_coerce_period_token(k): val for k, val in v.items()}
+        return v
+
+
 class Series(BaseModel):
     """One plotted series. `type` is required — there is no chart-level default."""
 
@@ -170,6 +209,9 @@ class Series(BaseModel):
     mark: Optional[MarkSpec] = None
     # Emphasis recoloring for chosen bars (bar series only) — see HighlightSpec.
     highlight: Optional[HighlightSpec] = None
+    # Fan series only: the uncertainty intervals drawn behind the central path,
+    # which is what `data` holds. See FanInterval.
+    intervals: Optional[list[FanInterval]] = None
     # Form overrides. `color` pins the series to a theme palette color by NAME (not
     # a raw hex — validated against the theme at render); `line` switches the stroke
     # style; `width` overrides the stroke width in points. All three are optional —
@@ -206,6 +248,24 @@ class Series(BaseModel):
             raise ValueError(
                 f"series {self.name!r}: `line` style is only for line series, not {self.type!r}"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_intervals(self):
+        # Both directions. A fan without intervals is a line drawn the long way
+        # round; intervals on anything else are form the renderer would ignore,
+        # and this boundary refuses rather than ignores.
+        if self.type == "fan" and not self.intervals:
+            raise ValueError(
+                f"series {self.name!r}: a fan needs at least one entry in `intervals`")
+        if self.intervals and self.type != "fan":
+            raise ValueError(
+                f"series {self.name!r}: `intervals` is only for fan series, not {self.type!r}")
+        if self.intervals:
+            confs = [iv.conf for iv in self.intervals]
+            if len(set(confs)) != len(confs):
+                raise ValueError(
+                    f"series {self.name!r}: two intervals share the same `conf` ({confs})")
         return self
 
     @model_validator(mode="after")

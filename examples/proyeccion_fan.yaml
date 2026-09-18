@@ -1,0 +1,34 @@
+# A fan chart: a central projection plus nested uncertainty intervals.
+#
+# `data` is the central path — an ordinary line. Each entry in `intervals` is a
+# fill BETWEEN TWO CURVES, so `lo` and `hi` are independent and a skewed
+# distribution needs no special case (the 90% band below is wider downward).
+#
+# `conf` is the probability inside the interval, as a percentage. The order here
+# is deliberately scrambled: econcharts draws them widest-first and checks the
+# measured widths against the confidences, so the author never has to care.
+#
+# The leading nulls are what make the fan start at the projection origin — the
+# same idiom `formato_lineas.yaml` uses to split observed from projected. There
+# is no "forecast" concept in the grammar; a fan over history (an estimate with
+# confidence bands) is the same object with no nulls.
+title: Inflación — proyección
+subtitle: var. % anual, con intervalos de confianza
+source: BCRP
+theme: bbva
+period: 2024Q1:2025Q4
+series:
+  - name: Inflación
+    type: fan
+    mark: last
+    data: [3.1, 3.0, 2.8, 2.6, 2.5, 2.4, 2.3, 2.2]
+    intervals:
+      - conf: 30
+        lo: [null, null, null, 2.50, 2.35, 2.20, 2.08, 1.98]
+        hi: [null, null, null, 2.70, 2.66, 2.62, 2.58, 2.54]
+      - conf: 90
+        lo: [null, null, null, 2.25, 1.90, 1.55, 1.25, 0.95]
+        hi: [null, null, null, 2.90, 3.05, 3.20, 3.32, 3.44]
+      - conf: 60
+        lo: [null, null, null, 2.38, 2.14, 1.90, 1.70, 1.52]
+        hi: [null, null, null, 2.80, 2.86, 2.92, 2.96, 3.00]

@@ -190,10 +190,19 @@ class DataResolver:
         self.series_decimals: dict[str, Optional[int]] = {}
 
     def resolve_series(self, series: "Series") -> pd.DataFrame:
-        data = series.data
+        return self.resolve_named(series.name, series.data)
+
+    def resolve_named(self, name: str, data) -> pd.DataFrame:
+        """Resolve one ref or inline block under a given series name.
+
+        Split out of `resolve_series` because a fan's `intervals` are refs that
+        belong to a series but are not series themselves: they resolve through
+        the same grammar, under synthetic names, so the long-df contract holds
+        for them too and they are framed and clipped with everything else.
+        """
         if isinstance(data, str):
-            return self._resolve_ref(series.name, data)
-        return self._resolve_inline(series.name, data)
+            return self._resolve_ref(name, data)
+        return self._resolve_inline(name, data)
 
     def resolve(self, spec: "Spec") -> pd.DataFrame:
         """Resolve every series in a spec into one concatenated long df."""

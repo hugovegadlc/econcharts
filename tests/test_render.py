@@ -934,6 +934,15 @@ def test_image_dense_marks():
 
 
 @pytest.mark.mpl_image_compare(baseline_dir="baseline", savefig_kwargs=_SAVEFIG, tolerance=20)
+def test_image_fan():
+    """Nested fills compound into the ramp - a golden image is the only thing
+    that would notice the alpha, the draw order or the z-order regressing."""
+    from conftest import EXAMPLES
+
+    return render(Spec.from_yaml(EXAMPLES / "proyeccion_fan.yaml"), size="slides_half")
+
+
+@pytest.mark.mpl_image_compare(baseline_dir="baseline", savefig_kwargs=_SAVEFIG, tolerance=20)
 def test_image_three_lines_right_labels():
     from conftest import EXAMPLES
 

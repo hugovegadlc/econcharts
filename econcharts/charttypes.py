@@ -80,6 +80,9 @@ LINESTYLES = {"solid": "-", "dashed": "--", "dotted": ":"}
 # Layering by type role: filled backgrounds at the back, lines always in front,
 # independent of the order series appear in the spec.
 Z_AREA = 1
+# Fan fills sit behind everything, including areas: they are a backdrop to the
+# central path, never a layer that participates in stacking.
+Z_FAN = 0.5
 Z_BAR = 2
 Z_LINE = 3
 
@@ -98,7 +101,11 @@ class ChartType:
     defer_marks = False
 
     def draw(self, ax, series, x, y, periods, color: str, ctx: RenderContext,
-             state: GroupState, theme) -> Geom:
+             state: GroupState, theme, bands=None) -> Geom:
+        """`bands` carries a fan's resolved intervals and is None for every other
+        type. It is a parameter rather than a lookup so the draw loop stays
+        type-blind — the alternative was a `if s.type == "fan"` in render, which
+        is exactly what CHART_TYPES exists to avoid."""
         raise NotImplementedError
 
     def place_marks(self, ax, series, periods, x, y, color: str, decimals: int,
@@ -114,14 +121,14 @@ class ChartType:
 class LineType(ChartType):
     defer_marks = True   # placed cross-series by marks.draw_line_marks
 
-    def draw(self, ax, series, x, y, periods, color, ctx, state, theme) -> Geom:
+    def draw(self, ax, series, x, y, periods, color, ctx, state, theme, bands=None) -> Geom:
         draw_line(ax, x, y, color, series.legend_label, ctx, (0, 1),
                   LINESTYLES[series.line], linewidth=series.width)
         return None
 
 
 class BarType(ChartType):
-    def draw(self, ax, series, x, y, periods, color, ctx, state, theme) -> BarGeom:
+    def draw(self, ax, series, x, y, periods, color, ctx, state, theme, bands=None) -> BarGeom:
         colors = _highlight_colors(series, periods, color, theme)
         geom = BarGeom(index=state.bar_seen, count=state.bar_count, colors=colors)
         state.bar_seen += 1
@@ -137,7 +144,7 @@ class BarType(ChartType):
 
 
 class AreaType(ChartType):
-    def draw(self, ax, series, x, y, periods, color, ctx, state, theme) -> AreaGeom:
+    def draw(self, ax, series, x, y, periods, color, ctx, state, theme, bands=None) -> AreaGeom:
         base = np.array([state.area_cum.get(p, 0.0) for p in periods])
         top = base + y
         draw_area_band(ax, x, base, top, color, series.legend_label)
@@ -149,7 +156,7 @@ class AreaType(ChartType):
 
 
 class StackedType(ChartType):
-    def draw(self, ax, series, x, y, periods, color, ctx, state, theme) -> StackedGeom:
+    def draw(self, ax, series, x, y, periods, color, ctx, state, theme, bands=None) -> StackedGeom:
         vals = np.where(np.isfinite(y), y, 0.0)
         bottoms = np.array([(state.pos_cum if v >= 0 else state.neg_cum).get(p, 0.0)
                             for p, v in zip(periods, vals)])
@@ -163,11 +170,104 @@ class StackedType(ChartType):
                            color, decimals, ctx, theme, placed)
 
 
+class FanType(ChartType):
+    """A central path plus nested uncertainty intervals.
+
+    One line and N fills, and that is the whole of it. Each interval is a fill
+    BETWEEN TWO CURVES (`fill_between(x, lo, hi)`), which is why it cannot go
+    through AreaType: an area fills from a baseline and stacks on whatever was
+    drawn before it via `GroupState.area_cum`, so a fan routed that way would
+    stack with the data instead of sitting behind it.
+
+    Because `lo` and `hi` are independent, a skewed distribution needs no
+    special case, and a fan that starts at a projection origin needs none
+    either — leading nulls leave the fills empty over history, the same idiom
+    `formato_lineas.yaml` already uses for a dashed projection.
+
+    The shading is not a ramp. Nested fills at one alpha COMPOUND, so three
+    intervals read 0.18 / 0.33 / 0.45 outward-in on their own. Nothing has to
+    know how many intervals there are, which matters because the count is the
+    author's choice, not the theme's.
+    """
+
+    defer_marks = True   # the central path is a line; marks go through draw_line_marks
+
+    def draw(self, ax, series, x, y, periods, color, ctx, state, theme, bands=None) -> Geom:
+        alpha = float(theme.val("fan.alpha", 0.18))
+        for _conf, lo, hi in (bands or ()):
+            ok = np.isfinite(lo) & np.isfinite(hi)
+            if not ok.any():
+                continue
+            ax.fill_between(x, lo, hi, where=ok, interpolate=False,
+                            facecolor=color, alpha=alpha, linewidth=0,
+                            zorder=Z_FAN)          # label-less: the legend names the path
+        draw_line(ax, x, y, color, series.legend_label, ctx, (0, 1),
+                  LINESTYLES[series.line], linewidth=series.width)
+        return None
+
+
+def fan_band_name(series_name: str, k: int, side: str) -> str:
+    """The synthetic long-df series name an interval's ref resolves under.
+
+    The NUL is deliberate: a real series name comes from YAML and cannot contain
+    one, so these rows can never collide with a user's own series.
+    """
+    return series_name + chr(0) + f"fan{k}" + chr(0) + side
+
+
+def fan_bands(long_df, series, periods):
+    """A fan's intervals as (conf, lo, hi) arrays aligned to `periods`.
+
+    None for every series that is not a fan, so the draw loop can call this
+    unconditionally and stay type-blind.
+
+    Sorted WIDEST FIRST, by the confidence the author declared — the order in
+    the spec is deliberately not load-bearing. Their measured widths are then
+    checked against that order: a 90% interval narrower than a 60% one is a
+    swapped `lo`/`hi` or a mispointed column, which nothing on the chart would
+    reveal because the narrower fill simply disappears under the wider one.
+    """
+    if not getattr(series, "intervals", None):
+        return None
+    out = []
+    for k, iv in enumerate(series.intervals):
+        lo = _aligned(long_df, fan_band_name(series.name, k, "lo"), periods)
+        hi = _aligned(long_df, fan_band_name(series.name, k, "hi"), periods)
+        if np.nanmean(hi - lo) < 0:
+            raise ChartTypeError(
+                f"the {iv.conf:g}% interval has `lo` above `hi` — are they swapped?")
+        out.append((iv.conf, lo, hi))
+    out.sort(key=lambda t: -t[0])
+    _check_nesting(out)
+    return out
+
+
+def _aligned(long_df, name, periods):
+    sub = long_df[long_df["series"] == name]
+    by_period = dict(zip(sub["period"], sub["value"]))
+    return np.array([by_period.get(p, np.nan) for p in periods], dtype=float)
+
+
+def _check_nesting(bands) -> None:
+    """A wider confidence must contain a narrower one, everywhere both exist."""
+    for (c_wide, lo_w, hi_w), (c_narrow, lo_n, hi_n) in zip(bands, bands[1:]):
+        both = np.isfinite(lo_w) & np.isfinite(lo_n) & np.isfinite(hi_w) & np.isfinite(hi_n)
+        if not both.any():
+            continue
+        scale = float(np.nanmax(hi_w[both] - lo_w[both]))
+        tol = max(abs(scale), 1.0) * 1e-9        # float noise, not a real violation
+        if ((lo_w[both] > lo_n[both] + tol) | (hi_w[both] < hi_n[both] - tol)).any():
+            raise ChartTypeError(
+                f"the {c_wide:g}% interval does not contain the {c_narrow:g}% one; "
+                f"check which columns each `lo`/`hi` points at")
+
+
 CHART_TYPES: dict[str, ChartType] = {
     "line": LineType(),
     "bar": BarType(),
     "area": AreaType(),
     "stacked": StackedType(),
+    "fan": FanType(),
 }
 
 
