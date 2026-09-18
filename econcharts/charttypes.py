@@ -22,6 +22,7 @@ import numpy as np
 from scipy.interpolate import PchipInterpolator
 
 from econcharts import marks
+from econcharts import theme as theme_mod   # `theme` is a draw() parameter here
 from econcharts.errors import EconchartsError
 
 
@@ -193,8 +194,8 @@ class FanType(ChartType):
     defer_marks = True   # the central path is a line; marks go through draw_line_marks
 
     def draw(self, ax, series, x, y, periods, color, ctx, state, theme, bands=None) -> Geom:
-        alpha = _fan_alpha(theme, series.shade_strength)
         fill_color = theme.resolve_color(series.shade) if series.shade else color
+        alpha = _fan_alpha(theme, series.shade_strength, fill_color)
         for _conf, lo, hi in (bands or ()):
             lo, hi = _anchor_to_central(lo, hi, y)
             ok = np.isfinite(lo) & np.isfinite(hi)
@@ -210,8 +211,21 @@ class FanType(ChartType):
 
 _FAN_STRENGTHS = {"soft": 0.12, "medium": 0.18, "strong": 0.40}
 
+# The faintest a band may composite and still be seen, as a CIE76 distance from
+# the white it lands on. This is NOT house style: a value below it does not give
+# a different look, it gives a band that is not there, which is the test this
+# repo applies to decide that a number belongs in code rather than in a theme —
+# the same test that keeps the label-overlap floor and PERP_SLOPE_THRESHOLD here.
+#
+# 5.0 is roughly twice the classic CIE76 just-noticeable difference (~2.3 for
+# large adjacent patches), the margin buying back what a projector and a lit room
+# take away. A fixed ALPHA cannot serve as this floor: across the bbva cycle,
+# `soft` spans delta-E 3.1 (grey) to 12.4 (blue), so one number would leave the
+# pale end invisible or drag the dark end far past what `soft` should mean.
+MIN_SHADE_DELTA_E = 5.0
 
-def _fan_alpha(theme, name: Optional[str]) -> float:
+
+def _fan_alpha(theme, name: Optional[str], color) -> float:
     """One interval's fill alpha, chosen from the theme's named set.
 
     A selection rather than a raw number, the way `color: orange` is — the house
@@ -223,11 +237,15 @@ def _fan_alpha(theme, name: Optional[str]) -> float:
     table = theme.val("fan.strengths", None) or _FAN_STRENGTHS
     name = name or theme.val("fan.strength", "medium")
     try:
-        return float(table[name])
+        alpha = float(table[name])
     except (KeyError, TypeError):
         raise ChartTypeError(
             f"unknown shade strength {name!r}; the theme offers "
             f"{', '.join(sorted(table))}") from None
+    # A named strength is a house PREFERENCE; being visible is not. Raise the
+    # faintest step until it clears the floor, so `soft` means one perceived
+    # lightness across the palette rather than one alpha and twelve results.
+    return theme_mod.alpha_for_delta_e(color, MIN_SHADE_DELTA_E, floor=alpha)
 
 
 def _anchor_to_central(lo, hi, y):
