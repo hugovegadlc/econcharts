@@ -194,16 +194,42 @@ class FanType(ChartType):
 
     def draw(self, ax, series, x, y, periods, color, ctx, state, theme, bands=None) -> Geom:
         alpha = float(theme.val("fan.alpha", 0.18))
+        fill_color = theme.resolve_color(series.shade) if series.shade else color
         for _conf, lo, hi in (bands or ()):
+            lo, hi = _anchor_to_central(lo, hi, y)
             ok = np.isfinite(lo) & np.isfinite(hi)
             if not ok.any():
                 continue
             ax.fill_between(x, lo, hi, where=ok, interpolate=False,
-                            facecolor=color, alpha=alpha, linewidth=0,
+                            facecolor=fill_color, alpha=alpha, linewidth=0,
                             zorder=Z_FAN)          # label-less: the legend names the path
         draw_line(ax, x, y, color, series.legend_label, ctx, (0, 1),
                   LINESTYLES[series.line], linewidth=series.width)
         return None
+
+
+def _anchor_to_central(lo, hi, y):
+    """Open the fill FROM the last point that has no interval.
+
+    Without this a fan begins at its first bounded period already at full width,
+    and the eye reads the vertical edge as a step in the data rather than the
+    start of a projection. Anchoring one period earlier, where `lo` and `hi` both
+    collapse onto the central path, makes the bands emanate from the last
+    observation the way a fan is meant to.
+
+    Nothing to do when the intervals start at the frame's first period — a fan
+    over the whole sample has no such point, which is the estimate-with-
+    confidence-bands case.
+    """
+    finite = np.flatnonzero(np.isfinite(lo) & np.isfinite(hi))
+    if finite.size == 0 or finite[0] == 0:
+        return lo, hi
+    i = finite[0] - 1
+    if not np.isfinite(y[i]):
+        return lo, hi
+    lo, hi = lo.copy(), hi.copy()
+    lo[i] = hi[i] = y[i]
+    return lo, hi
 
 
 def fan_band_name(series_name: str, k: int, side: str) -> str:

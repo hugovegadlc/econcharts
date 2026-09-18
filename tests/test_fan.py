@@ -95,3 +95,41 @@ def test_the_fan_starts_where_its_intervals_do():
     central_x = ax.lines[0].get_xdata()
     assert min(fill_x) > min(central_x),         "the fill must not cover the periods whose bounds are null"
     assert max(fill_x) == pytest.approx(max(central_x), rel=1e-6),         "but it must reach the end of the horizon"
+
+def test_the_fills_can_take_a_colour_of_their_own():
+    """A fan reads better when the bands recede from the central path rather
+    than restating it, so `shade` picks a theme colour NAME for the fills."""
+    from econcharts.theme import load_theme
+    theme = load_theme("bbva")
+    spec = _fan([_iv(90, 2.0, 4.0)])
+    spec.series[0].shade = "lightblue"
+    fig = render(spec, size="slides_half")
+    fill = fig.axes[0].collections[0].get_facecolor()[0][:3]
+    want = matplotlib.colors.to_rgb(theme.resolve_color("lightblue"))
+    assert fill == pytest.approx(want, abs=1e-6), "the fill ignored `shade`"
+    line = matplotlib.colors.to_rgb(fig.axes[0].lines[0].get_color())
+    assert line != pytest.approx(want, abs=1e-6), "the central path must keep its own colour"
+
+
+def test_shade_is_refused_on_anything_but_a_fan():
+    with pytest.raises(SpecError, match="only for fan series"):
+        Spec.from_dict({"series": [{"name": "I", "type": "line", "data": [1, 2],
+                                    "shade": "lightblue"}]})
+
+
+def test_the_fan_opens_from_the_last_point_without_an_interval():
+    """Otherwise the bands begin at full width and the vertical edge reads as a
+    step in the data rather than the start of a projection."""
+    central = (3.0, 3.0, 3.0, 3.0)
+    spec = Spec(period=f"{_P[0]}:{_P[-1]}", series=[{
+        "name": "I", "type": "fan", "data": dict(zip(_P, central)),
+        "intervals": [{"conf": 90,
+                       "lo": dict(zip(_P, [None, None, 2.0, 1.5])),
+                       "hi": dict(zip(_P, [None, None, 4.0, 4.5]))}]}])
+    fig = render(spec, size="slides_half")
+    verts = [v for p in fig.axes[0].collections[0].get_paths() for v in p.vertices]
+    x0 = min(v[0] for v in verts)
+    at_x0 = [v[1] for v in verts if v[0] == pytest.approx(x0, abs=1e-9)]
+    assert max(at_x0) - min(at_x0) == pytest.approx(0.0, abs=1e-9), (
+        f"the fan should open from a point on the central path, but starts "
+        f"{max(at_x0) - min(at_x0):.3f} wide")

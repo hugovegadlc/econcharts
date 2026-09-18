@@ -212,6 +212,11 @@ class Series(BaseModel):
     # Fan series only: the uncertainty intervals drawn behind the central path,
     # which is what `data` holds. See FanInterval.
     intervals: Optional[list[FanInterval]] = None
+    # Fan series only: a theme color NAME for the interval fills. The central
+    # path and its shading are not obliged to be the same hue — a fan reads
+    # better when the bands recede from the line rather than restating it.
+    # Omitted, the fills take the series color.
+    shade: Optional[str] = None
     # Form overrides. `color` pins the series to a theme palette color by NAME (not
     # a raw hex — validated against the theme at render); `line` switches the stroke
     # style; `width` overrides the stroke width in points. All three are optional —
@@ -261,6 +266,9 @@ class Series(BaseModel):
         if self.intervals and self.type != "fan":
             raise ValueError(
                 f"series {self.name!r}: `intervals` is only for fan series, not {self.type!r}")
+        if self.shade is not None and self.type != "fan":
+            raise ValueError(
+                f"series {self.name!r}: `shade` is only for fan series, not {self.type!r}")
         if self.intervals:
             confs = [iv.conf for iv in self.intervals]
             if len(set(confs)) != len(confs):

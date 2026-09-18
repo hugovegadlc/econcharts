@@ -51,6 +51,7 @@ with errors naming the offending key.
 | `line` | `solid`\|`dashed`\|`dotted` | stroke style; **line series only**; default `solid` |
 | `width` | float? | stroke width in points; **line series only**; default = theme rc |
 | `intervals` | list | uncertainty intervals; **fan series only**, ≥1 — see **Fan intervals** |
+| `shade` | string? | theme colour **name** for the interval fills; **fan series only**; default = the series colour |
 
 **Combination by `type`** (the type *is* the combine rule): multiple `bar` group
 side-by-side (dodged); multiple `stacked` stack (negatives downward); `area` fill and
@@ -86,6 +87,13 @@ A fan is a central path plus nested uncertainty intervals: **one line and N fill
 * **There is no "forecast" concept.** Leading `null`s in `lo`/`hi` leave the fills
   empty over history, which is how a fan starts at a projection origin. A fan over the
   whole sample — an estimate with confidence bands — is the same object with no nulls.
+* **The fan opens from the last period with no interval**, where `lo` and `hi` collapse
+  onto the central path. Without that the bands begin at full width and the vertical
+  edge reads as a step in the data rather than the start of a projection. Nothing to
+  do when the intervals start at the frame's first period.
+* **`shade` picks the fill colour** by theme name, so the bands can recede from the
+  central path instead of restating it. A pale shade gives a subtler ramp; `fan.alpha`
+  in the theme is the one lever if it needs more contrast.
 * **Shading is not configurable per interval.** Nested fills at one theme alpha
   compound, so the ramp darkens toward the centre whatever the number of intervals.
 * `mark` and the legend apply to the **central path only**.
