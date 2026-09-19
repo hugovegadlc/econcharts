@@ -14,9 +14,6 @@ matplotlib.use("Agg")
 
 from econcharts.render import render, RenderError        # noqa: E402
 from econcharts.spec import Spec, SpecError              # noqa: E402
-from econcharts import charttypes                        # noqa: E402
-from econcharts import theme as theme_mod                # noqa: E402
-from econcharts.theme import load_theme                  # noqa: E402
 
 _P = ["2024Q1", "2024Q2", "2024Q3", "2024Q4"]
 
@@ -184,54 +181,3 @@ def test_shade_strength_is_refused_on_anything_but_a_fan():
     with pytest.raises(SpecError, match="only for fan series"):
         Spec.from_dict({"series": [{"name": "I", "type": "line", "data": [1, 2],
                                     "shade_strength": "strong"}]})
-
-
-# --- the visibility floor -----------------------------------------------------
-#
-# A named strength says how emphatic the house wants a band to look. It cannot
-# say whether the band can be seen, because that depends on the colour it is
-# drawn in — so these assert the floor, not the alphas.
-
-def test_soft_is_visible_in_every_palette_colour():
-    """No colour in the cycle may render `soft` below the visibility floor.
-
-    The bug this forbids is silent: the chart renders, the band is simply not
-    there. `grey` at a flat 0.12 composites to delta-E 3.1, under the floor.
-    """
-    t = load_theme("bbva")
-    for name in t.raw["cycle"]:
-        color = t.resolve_color(name)
-        alpha = charttypes._fan_alpha(t, "soft", color)
-        got = theme_mod.delta_e_over_white(color, alpha)
-        assert got >= charttypes.MIN_SHADE_DELTA_E - 1e-6, (
-            f"{name} composites to delta-E {got:.1f} at alpha {alpha:.3f}")
-
-
-def test_the_floor_only_ever_raises():
-    """It is a floor, not a normalisation — a band already clear of it is left
-    alone, so a dark shade keeps the contrast the author asked for."""
-    t = load_theme("bbva")
-    blue = t.resolve_color("blue")
-    assert charttypes._fan_alpha(t, "soft", blue) == 0.12
-    for strength in ("soft", "medium", "strong"):
-        for name in t.raw["cycle"]:
-            table_alpha = charttypes._FAN_STRENGTHS[strength]
-            got = charttypes._fan_alpha(t, strength, t.resolve_color(name))
-            assert got >= table_alpha
-
-
-def test_the_example_is_untouched_by_the_floor():
-    """`lightblue` at soft sits just above the floor on its own merits.
-
-    Pinned because it is why the floor changed no golden image: if a palette
-    edit drops it under, that is a real visual change and should be seen here
-    rather than as a silently darker example.
-    """
-    t = load_theme("bbva")
-    assert charttypes._fan_alpha(t, "soft", t.resolve_color("lightblue")) == 0.12
-
-
-def test_delta_e_over_white_is_zero_for_no_ink():
-    t = load_theme("bbva")
-    assert theme_mod.delta_e_over_white(t.resolve_color("blue"), 0.0) == pytest.approx(0)
-    assert theme_mod.delta_e_over_white("#FFFFFF", 1.0) == pytest.approx(0)

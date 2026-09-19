@@ -390,63 +390,6 @@ def load_theme(name: str) -> Theme:
     )
 
 
-# --- perceived contrast -------------------------------------------------------
-#
-# How far a composited fill sits from the page, in CIE L*a*b*. This is colour
-# science, not house style: it answers "can this be seen at all", which is the
-# same question whatever the theme. `charttypes` uses it to hold a fan's
-# faintest band above the visibility floor.
-
-
-def _srgb_to_lab(rgb: tuple) -> tuple:
-    """sRGB 0-255 -> CIE L*a*b* (D65, 2 degree observer)."""
-    lin = []
-    for c in rgb:
-        c = c / 255.0
-        lin.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
-    r, g, b = lin
-    xyz = (
-        (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047,
-        (0.2126 * r + 0.7152 * g + 0.0722 * b) / 1.00000,
-        (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883,
-    )
-    f = [v ** (1 / 3) if v > 0.008856 else 7.787 * v + 16 / 116 for v in xyz]
-    return (116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2]))
-
-
-def delta_e_over_white(color, alpha: float) -> float:
-    """CIE76 distance from white of `color` composited over white at `alpha`.
-
-    The chart saves transparent and lands on the deck's white panel, so white is
-    the real background rather than a stand-in for one.
-    """
-    r, g, b = (255 * c for c in mcolors.to_rgb(color))
-    over = tuple(255 - (255 - c) * alpha for c in (r, g, b))
-    lab, white = _srgb_to_lab(over), _srgb_to_lab((255, 255, 255))
-    return math.dist(lab, white)
-
-
-def alpha_for_delta_e(color, target: float, floor: float = 0.0) -> float:
-    """The smallest alpha >= `floor` whose composite clears `target` delta-E.
-
-    Monotonic in alpha, so bisection is exact to the tolerance. Returns 1.0 when
-    even an opaque fill cannot reach the target -- a colour that pale is the
-    caller's problem, not something to raise on mid-render.
-    """
-    if delta_e_over_white(color, floor) >= target:
-        return floor
-    if delta_e_over_white(color, 1.0) < target:
-        return 1.0
-    lo, hi = floor, 1.0
-    for _ in range(40):
-        mid = (lo + hi) / 2
-        if delta_e_over_white(color, mid) >= target:
-            hi = mid
-        else:
-            lo = mid
-    return hi
-
-
 class ThemeError(EconchartsError):
     """Theme could not be resolved."""
 
