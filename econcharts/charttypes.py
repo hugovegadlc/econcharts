@@ -193,41 +193,76 @@ class FanType(ChartType):
     defer_marks = True   # the central path is a line; marks go through draw_line_marks
 
     def draw(self, ax, series, x, y, periods, color, ctx, state, theme, bands=None) -> Geom:
-        alpha = _fan_alpha(theme, series.shade_strength)
         fill_color = theme.resolve_color(series.shade) if series.shade else color
-        for _conf, lo, hi in (bands or ()):
-            lo, hi = _anchor_to_central(lo, hi, y)
-            ok = np.isfinite(lo) & np.isfinite(hi)
-            if not ok.any():
-                continue
-            ax.fill_between(x, lo, hi, where=ok, interpolate=False,
-                            facecolor=fill_color, alpha=alpha, linewidth=0,
-                            zorder=Z_FAN)          # label-less: the legend names the path
+        edges = [_anchor_to_central(lo, hi, y) for _conf, lo, hi in (bands or ())]
+        ramp = _fan_ramp(theme, series.shade_strength, len(edges))
+
+        # Each band is drawn as the RING between it and the next one in, never as
+        # a full band over its neighbours. Overlapping fills compound, and a
+        # compounded alpha is not a value any theme can name: the visible shade
+        # would depend on how many intervals the author happened to declare. Rings
+        # do not touch each other, so the ramp above is what actually lands.
+        for k, (lo, hi) in enumerate(edges):
+            if k == len(edges) - 1:
+                regions = [(lo, hi)]                    # innermost: solid through
+            else:
+                nlo, nhi = edges[k + 1]
+                regions = [(nhi, hi), (lo, nlo)]        # above and below the next band
+            for top, bottom in regions:
+                ok = np.isfinite(top) & np.isfinite(bottom)
+                if not ok.any():
+                    continue
+                ax.fill_between(x, top, bottom, where=ok, interpolate=False,
+                                facecolor=fill_color, alpha=ramp[k], linewidth=0,
+                                zorder=Z_FAN)      # label-less: the legend names the path
         draw_line(ax, x, y, color, series.legend_label, ctx, (0, 1),
                   LINESTYLES[series.line], linewidth=series.width)
         return None
 
 
-_FAN_STRENGTHS = {"soft": 0.12, "medium": 0.18, "strong": 0.40}
+# Mirrors themes/bbva.yaml, which carries the reasoning. `soft` is measured, not
+# chosen: 0.20 puts a single lightblue fill at CIEDE2000 7.0 over white, past the
+# 5.0 that reads as clearly visible. The formula has to be CIEDE2000 -- CIE76
+# overstates blue by ~2.7x, and every shade colour is blue.
+_FAN_STRENGTHS = {"soft": 0.25, "medium": 0.45, "strong": 0.65}
 
 
-def _fan_alpha(theme, name: Optional[str]) -> float:
-    """One interval's fill alpha, chosen from the theme's named set.
-
-    A selection rather than a raw number, the way `color: orange` is — the house
-    decides what `strong` means. It is a SPEC key rather than a theme-only value
-    because the strength a fan needs depends on its content: nested fills
-    compound, so the outermost always composites at exactly this alpha and a
-    single-interval fan renders at the lightest step of a ramp it never gets.
-    """
-    table = theme.val("fan.strengths", None) or _FAN_STRENGTHS
-    name = name or theme.val("fan.strength", "medium")
+def _named_strength(table, name: str) -> float:
     try:
         return float(table[name])
     except (KeyError, TypeError):
         raise ChartTypeError(
             f"unknown shade strength {name!r}; the theme offers "
             f"{', '.join(sorted(table))}") from None
+
+
+def _fan_ramp(theme, name: Optional[str], n: int) -> list:
+    """The alpha of each of `n` nested bands, outermost first.
+
+    soft/medium/strong are the LEVELS OF SHADE WITHIN ONE FAN, not three house
+    styles each generating its own ramp: the outermost band is always `soft` and
+    the innermost always `strong`, whatever the interval count, so a fan reads
+    the same way whether the author declared two bands or five. Anything between
+    is spaced evenly, which is why `medium` is the midpoint of the other two
+    rather than a free third value — at three intervals the interpolation has to
+    land on it, or the name would be describing a shade the fan never draws.
+
+    The bands are drawn as non-overlapping RINGS (see `draw`), so each composites
+    at exactly the alpha returned here. That is the whole reason the ramp can be
+    stated directly. When the fills were nested and left to COMPOUND, three
+    intervals at 0.67 reached 0.96 effective and the fan swallowed its own
+    central path — the ramp was an artefact of overlap rather than something the
+    theme could name.
+
+    A single interval has no ramp to sit on, so it is the one case `shade_strength`
+    still decides.
+    """
+    table = theme.val("fan.strengths", None) or _FAN_STRENGTHS
+    if n <= 1:
+        return [_named_strength(table, name or theme.val("fan.strength", "medium"))]
+    lo = _named_strength(table, "soft")
+    hi = _named_strength(table, "strong")
+    return [lo + (hi - lo) * k / (n - 1) for k in range(n)]
 
 
 def _anchor_to_central(lo, hi, y):

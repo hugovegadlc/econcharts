@@ -94,13 +94,18 @@ A fan is a central path plus nested uncertainty intervals: **one line and N fill
   do when the intervals start at the frame's first period.
 * **`shade` picks the fill colour** by theme name, so the bands can recede from the
   central path instead of restating it.
-* **`shade_strength` picks how dark one fill is**, from the theme's named set. It is a
-  spec key rather than theme-only because the strength a fan needs depends on its
-  content: nested fills compound, so the *outermost* always composites at exactly this
-  alpha and a **single-interval fan renders at the lightest step** of a ramp it never
-  gets. A lone confidence band on a pale `shade` is the case to reach for `strong`.
-* **Shading is not configurable per interval.** Nested fills at one theme alpha
-  compound, so the ramp darkens toward the centre whatever the number of intervals.
+* **The ramp is automatic, and it is the same ramp at any interval count.** The
+  outermost band is always the theme's `soft`, the innermost always `strong`, and any
+  bands between are spaced evenly, so two intervals and five both span the full ladder
+  and a reader is never shown a different scale because of how many were declared.
+  Bands are drawn as non-overlapping rings, so each is exactly its own shade rather
+  than the sum of everything drawn over it.
+* **`shade_strength` applies to a single-interval fan only.** One band has no ramp to
+  span, so that is the one case the spec picks the rung for (`soft`|`medium`|`strong`);
+  with two or more intervals the full ladder applies and it is ignored. A lone
+  confidence band on a pale `shade` is the case to reach for `strong`.
+* **Shading is not configurable per interval.** The theme sets the two ends; the spec
+  does not set the steps.
 * `mark` and the legend apply to the **central path only**.
 * Values ≤ 0 or > 100 are refused; so is anything below 1, since `0.9` is far more
   likely to mean 90% than a 0.9% interval.

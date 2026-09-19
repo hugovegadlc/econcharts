@@ -118,5 +118,5 @@ one its own curve intrudes into less across the label's width. A test asserts
 that **no label sits on another** across every example at three sizes.
 
 Backlog: domain registry (recessions / targets / event marks), Google Sheets & database
-resolvers, `fan` chart type (forecast bands), slim bundle (drop scipy), and an optional
+resolvers, slim bundle (drop scipy), and an optional
 natural-language authoring layer.

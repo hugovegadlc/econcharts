@@ -93,11 +93,26 @@ legend:
 # three-interval fan reads well. The house decides what soft/medium/strong mean;
 # the spec picks one with `shade_strength`.
 #
-# All are below `annotations.fill_alpha` (0.25) on purpose: that one is drawn
-# once, these stack.
+# `soft` is the one that has to be RIGHT, because it is the faintest thing the
+# chart ever draws, and it is set by measurement rather than taste: a single fill
+# over white at 0.20 puts `lightblue` at CIEDE2000 7.0 from the page, past the
+# 5.0 that reads as "clearly visible" on the standard interpretation scale, where
+# 0.12 reached only 4.5. Measured perceptibility sits near dE00 2.3, so this
+# clears it about 3x -- the margin a projector and a lit room take back.
+#
+# Use CIEDE2000 and NOT CIE76 if you ever recheck these. CIE76 overstates blue
+# differences by ~2.7x (9.18 vs 3.44 on the Sharma reference pairs) and every
+# shade colour here is blue, so CIE76 would call a band visible that is not.
+#
+# `medium` and `strong` are 0.20 scaled by the same 5/3, so the three keep their
+# relative spacing. `strong` is deliberately no longer below
+# `annotations.fill_alpha` (0.25): it is a single-interval emphasis value, and
+# nested fills COMPOUND, so a three-interval fan at `strong` reaches 0.96
+# effective and swallows its own central path. That is the author's call to make,
+# not a fault in the table.
 fan:
   strength: medium                          # when a spec does not choose
-  strengths: {soft: 0.12, medium: 0.18, strong: 0.40}
+  strengths: {soft: 0.25, medium: 0.45, strong: 0.65}
 
 annotations:
   line:   {grey: slate, orange: orange, blue: blue}        # reference lines
