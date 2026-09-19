@@ -343,3 +343,45 @@ def test_each_ring_composites_at_exactly_its_named_alpha():
         want = white + (ink - white) * alpha
         assert np.allclose(band, want, atol=1.5), (
             f"{band} is not alpha {alpha} over white ({want})")
+
+
+# --- the bands are curves, not polygons --------------------------------------
+#
+# Pixels cannot police this. Smoothing the band edges moves 1% of the image and
+# scores RMS 0.68 against test_image_fan's tolerance of 20, so the golden image
+# passed the bug and passed the fix. Both of these look at the geometry instead.
+
+def test_the_bands_are_smoothed_like_the_path():
+    """A fan shipped with a 320-point PCHIP path inside 15-point polygons. On a
+    curved series the stroke visibly left its own innermost band between
+    observations, because only one of the two was following the curve."""
+    spec = _fan([_iv(90, 2.0, 4.0), _iv(60, 2.5, 3.5)])
+    fig = render(spec, size="slides_half")
+    ax = fig.axes[0]
+    raw = len(spec.series[0].data)
+    path = len(ax.lines[0].get_xdata())
+    assert path > raw * 4, "the central path is not being smoothed at all"
+    for i, coll in enumerate(ax.collections):
+        got = len(coll.get_paths()[0].vertices)
+        assert got > raw * 4, (
+            f"fill {i} has {got} vertices for {raw} points - it is a polygon, "
+            f"while the path it sits under has {path}")
+
+
+def test_a_fan_does_not_reach_back_over_history():
+    """The trap in smoothing a fan. `_smooth_onto` bridges NaNs by fitting only
+    the finite points, so fitting the raw column would extrapolate a
+    confident-looking band across the years the forecast does not cover. The fit
+    has to be restricted to the span where the interval actually exists."""
+    spec = _fan([_iv(90, 2.0, 4.0)])
+    # history first, then the projection - the shape every real fan has
+    spec.series[0].data = [3.0, 3.1, 3.2, 3.3]
+    spec.series[0].intervals[0].lo = [None, None, 2.9, 2.5]
+    spec.series[0].intervals[0].hi = [None, None, 3.5, 4.1]
+    ax = render(spec, size="slides_half").axes[0]
+    path_x = np.asarray(ax.lines[0].get_xdata())
+    for i, coll in enumerate(ax.collections):
+        fill_x = coll.get_paths()[0].vertices[:, 0]
+        assert fill_x.min() > path_x.min(), (
+            f"fill {i} starts at {fill_x.min()} where the path starts at "
+            f"{path_x.min()} - the band has been extrapolated over history")

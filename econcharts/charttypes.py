@@ -202,6 +202,11 @@ class FanType(ChartType):
         # compounded alpha is not a value any theme can name: the visible shade
         # would depend on how many intervals the author happened to declare. Rings
         # do not touch each other, so the ramp above is what actually lands.
+        #
+        # Every edge is PCHIP-smoothed, like the central path and like an `area`
+        # layer. It has to be: the path is drawn on a 320-point fitted curve and
+        # the bands were raw polygons, so a curve could visibly leave its own
+        # innermost band between observations.
         for k, (lo, hi) in enumerate(edges):
             if k == len(edges) - 1:
                 regions = [(lo, hi)]                    # innermost: solid through
@@ -209,10 +214,11 @@ class FanType(ChartType):
                 nlo, nhi = edges[k + 1]
                 regions = [(nhi, hi), (lo, nlo)]        # above and below the next band
             for top, bottom in regions:
-                ok = np.isfinite(top) & np.isfinite(bottom)
-                if not ok.any():
+                ring = _smooth_ring(x, top, bottom)
+                if ring is None:
                     continue
-                ax.fill_between(x, top, bottom, where=ok, interpolate=False,
+                xs, tops, bottoms = ring
+                ax.fill_between(xs, tops, bottoms,
                                 facecolor=fill_color, alpha=ramp[k], linewidth=0,
                                 zorder=Z_FAN)      # label-less: the legend names the path
         draw_line(ax, x, y, color, series.legend_label, ctx, (0, 1),
@@ -287,6 +293,31 @@ def _anchor_to_central(lo, hi, y):
     lo, hi = lo.copy(), hi.copy()
     lo[i] = hi[i] = y[i]
     return lo, hi
+
+
+def _smooth_ring(x, top, bottom):
+    """Both edges of one ring, PCHIP-fitted on a SHARED fine grid.
+
+    Shared for the same reason `draw_area_band` smooths its base and top
+    together: two independent fits of nearby curves can cross, and a crossed
+    ring renders as a bow tie.
+
+    Restricted to the span where BOTH edges are finite, which matters more here
+    than anywhere else in the module. A fan is empty over history, and
+    `_smooth_onto` bridges NaNs by fitting only the finite points -- so fitting
+    the raw column would extrapolate a confident-looking band back across the
+    years the forecast does not cover. `draw_line` slices to its finite span
+    before smoothing for exactly this reason; so does this.
+    """
+    top = np.asarray(top, dtype=float)
+    bottom = np.asarray(bottom, dtype=float)
+    ok = np.flatnonzero(np.isfinite(top) & np.isfinite(bottom))
+    if ok.size == 0:
+        return None
+    lo, hi = ok[0], ok[-1]
+    xr = np.asarray(x, dtype=float)[lo:hi + 1]
+    xs = _grid(xr)
+    return xs, _smooth_onto(xr, top[lo:hi + 1], xs), _smooth_onto(xr, bottom[lo:hi + 1], xs)
 
 
 def fan_band_name(series_name: str, k: int, side: str) -> str:
