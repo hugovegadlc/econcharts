@@ -1,0 +1,24 @@
+# Line endings: LF in the repository, platform-native in the working tree.
+#
+# This is not a change of direction -- the repo already stores every text file
+# as LF. It is here so the behaviour comes from the REPO rather than from each
+# machine's core.autocrlf, which is how a file ends up with both conventions
+# inside it: one tool appends CRLF to a file another wrote as LF, and the mixed
+# result matches nothing on an exact-string edit.
+* text=auto
+
+# run.bat ships at the root of the frozen bundle, and older Windows shells can
+# mis-parse a batch file with LF-only endings.
+*.bat text eol=crlf
+
+# Git detects these already; saying so means a text conversion can never corrupt
+# one, and never depends on the detection heuristic.
+*.png  binary
+*.jpg  binary
+*.pdf  binary
+*.xlsx binary
+*.xlsm binary
+*.xlam binary
+*.pptx binary
+*.potx binary
+*.ico  binary
