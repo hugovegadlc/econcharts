@@ -52,7 +52,11 @@ the operation instead of precomputing a column; spec reuse (LaTeX's
 `\newcommand`/`\input` — today every chart repeats itself and the batch header
 cascade is the only reuse there is); facets. *Infrastructure, not language*:
 gsheet/db resolvers (db hits tsdb-api at `db.simgol.net`), slim bundle (drop
-scipy). AI authoring layer **last**.
+scipy — it is here for `PchipInterpolator` alone and costs 117MB in `.venv`
+plus another 49MB frozen into `ship/dist`); get the working copy out of
+OneDrive and have builds clean up after themselves (git tracks 2.6MB of the
+794MB here — the rest is gitignored and still syncing; written up in the notes
+repo's `roadmap.md` §3, since it applies to every repo under `OneDrive\BBVA\`). AI authoring layer **last**.
 
 ## Pipeline
 `YAML spec → pydantic validate (spec.py) → resolve data + frame (data.py, render._resolve_framed) → matplotlib render → png | svg | pdf` — and at the batch level: `batch.yaml → per-chart jobs (fail-soft) → figures + .pptx deck`.
