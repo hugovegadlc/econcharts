@@ -3,11 +3,35 @@
 ## Purpose
 Automated production of publication-quality economic charts from a minimal, substance-only spec. Form (style, color, layout) is pre-encoded; the user supplies only content, data, per-series chart type, and domain annotations. A narrow DSL for macro time-series charts — deliberately **not** a general grammar of graphics.
 
+## The organising analogy: econcharts is LaTeX for charts
+The spec is the `.tex`; the theme is the `.sty`; `GRAMMAR.md` is the language
+reference. It is **WYSIWYM** — the author declares what something MEANS and the
+system decides how it looks, which is why `period` frames the axis rather than
+the author setting xlim, why `mark: last` beats positioning a text box, and why
+`chrome` follows the size preset rather than the spec.
+
+**This is the axis along which the project grows**: a richer, more flexible
+LANGUAGE. It sits comfortably beside "narrowness is the feature" once the two
+axes are separated, and they are the same discipline pointed in two directions:
+
+* **More meaning — grow it.** LaTeX is an enormous language, and nearly all of
+  that size is semantic (`\section`, `\cite`, `\theorem`). New vocabulary that
+  lets an economist say something they could only previously hand-compute or
+  hand-place is the point of the project, not drift.
+* **More form knobs — refuse them.** Formatting lives in the `.sty` where the
+  author cannot reach it casually. `style:` is `\vspace{}`: it exists, it is the
+  escape hatch, and reaching for it is a smell rather than a feature.
+
+The test for a proposed feature is therefore not "is it another option?" but
+**"does it let the author say something they mean, or only something they want
+it to look like?"** A `transform: yoy` is the first; a `linewidth: 2.5` is the
+second.
+
 ## Core principles
 - **Spec, not code.** Charts are declared in YAML, validated and resolved by deterministic Python, rendered by a fixed engine. No code generation, no AI in the render path.
 - **Substance over form.** The spec carries content + domain semantics only. Every formal choice lives in the theme. Overrides are *selections* from theme-named sets (`color: orange`, `line: dashed`), never raw values; the chart-level `style:` block is the sole raw-value escape hatch.
 - **Narrowness is the feature.** Resist adding knobs — each new option is drift toward ggplot.
-- **Domain-semantic vocabulary.** Users write in an economist's terms, not graphics primitives. The registry that resolves tokens like `recessions: peru` / `target: inflation_pe` is the planned differentiator (backlog — not yet implemented).
+- **Domain-semantic vocabulary.** Users write in an economist's terms, not graphics primitives — the richness described above is all of this kind. The registry that would resolve tokens like `recessions: peru` / `target: inflation_pe` is the canonical example and is **deliberately OUT OF SCOPE for the foreseeable future** (2026-09-19), not abandoned: it is on-strategy but not next. `registry/` stays empty; `tests/test_spec.py` still asserts `recessions:` is refused. Do not start it unprompted.
 - **Hand-authorable first.** The full pipeline works on hand-written specs; an AI authoring layer is a separate, optional, last-built extension.
 
 ## Documents — who owns what
@@ -19,7 +43,16 @@ Automated production of publication-quality economic charts from a minimal, subs
 ## Status (feature-complete core; version = pyproject.toml)
 Done: line/bar/area/stacked/fan (+ combinations, secondary axis), per-series marks with deterministic label placement, per-series bar `highlight` (emphasis recoloring), hline/vline/span/band annotations, adaptive daily→yearly date axis, authoritative `period` framing with `start`/`end` tokens, Excel + inline data, bbva theme, named export sizes, batch documents → figures + PPTX deck, CLI, frozen Windows exe (ship/), 192 tests incl. golden images.
 
-Backlog (build in this order when asked): domain registry (`recessions:`/`target:`/event marks — `registry/` dir exists but is empty; tokens are YAML data, not code), gsheet/db resolvers (db hits tsdb-api at `db.simgol.net`), facets, slim bundle (drop scipy), AI authoring layer **last**.
+Backlog: the direction is a richer SPEC LANGUAGE (see the analogy above), so
+candidates are weighed by how much meaning they let an author express — not by
+how many charts they unlock. Nothing here is scheduled; build when asked.
+*Out of scope for now*: the domain registry (above). *Live candidates*: a
+semantic transform layer (`yoy`, `index`, `contribution`) so an economist states
+the operation instead of precomputing a column; spec reuse (LaTeX's
+`\newcommand`/`\input` — today every chart repeats itself and the batch header
+cascade is the only reuse there is); facets. *Infrastructure, not language*:
+gsheet/db resolvers (db hits tsdb-api at `db.simgol.net`), slim bundle (drop
+scipy). AI authoring layer **last**.
 
 ## Pipeline
 `YAML spec → pydantic validate (spec.py) → resolve data + frame (data.py, render._resolve_framed) → matplotlib render → png | svg | pdf` — and at the batch level: `batch.yaml → per-chart jobs (fail-soft) → figures + .pptx deck`.
