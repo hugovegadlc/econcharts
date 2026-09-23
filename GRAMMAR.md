@@ -110,6 +110,28 @@ A fan is a central path plus nested uncertainty intervals: **one line and N fill
 * Values ≤ 0 or > 100 are refused; so is anything below 1, since `0.9` is far more
   likely to mean 90% than a 0.9% interval.
 
+## Categorical charts (`categories`) — Excel edition first, Python pending
+
+A spec is **periodic or categorical, never both**. `categories:` replaces
+`period:`: it names the labels of a cross-section and draws **horizontal bars**
+against them. Both keys present is an error; a `period` inherited from a batch
+header does not reach a chart that declares `categories`.
+
+| key | value | meaning |
+|---|---|---|
+| `categories` | ref | the labels, given the way `data:` is given (a column in the Excel edition; an inline list or `excel:` ref in Python) |
+
+* `type: bar` sits side by side, `type: stacked` stacks; one kind per chart.
+* The first category is drawn at the **top**.
+* Nothing is inferred from what the labels look like: years are categories
+  because the spec says `categories:`.
+* v1 refuses `orient`, annotations, `highlight`, a secondary axis and any mark
+  other than `mark: all`.
+
+**Status:** implemented in the Excel edition (v0.12.0). The Python renderer
+does not accept `categories` yet and will refuse it as an unknown key until the
+port lands.
+
 ## Mark (per-series data labels)
 | key | type | notes |
 |-----|------|-------|
