@@ -83,25 +83,19 @@ minor for new spec surface.
   another cwd.
 
 ## Two editions
-`econcharts_excel/` is the VBA add-in edition: a **separate git repo with its
-own remote** (private), nested here and gitignored by this one. It is in scope
-from this session, has its own `CLAUDE.md`, and its commits go to its own
-remote, never into this repo.
+`econcharts_excel/` is the VBA add-in edition: a separate git repo with its own
+remote, nested here and gitignored by this one. It is in scope from this
+session; its commits go to its own remote, never into this repo.
 
-- Source of truth is `src/*.bas`, assembled into one `.xlam` by
-  `build/build.py`. Checks: `build/check.py` (lint + compile + self-test),
-  `build/smoke.py` (renders `examples/` in real Excel, leaves PNGs in
-  `dist/smoke/`), `build/gallery.py` (the full gallery), `build/share.py`
-  (the user bundle `dist/econcharts_share.zip`, verified outside the repo).
-  `Application.Run` does not compile the whole project, so code that has never
-  run is unproven — render it.
-- `GRAMMAR.md` here is the grammar for both. Keys only econcharts names (mark
-  placement, deck furniture, sizes, fan strengths) use one name in both themes.
-- Deliberate divergences: the Excel edition reads bare column names only (no
-  inline data); fan bands are polygonal because Excel ignores `Series.Smooth`
-  on area series; `fan`, `area` and a `band` annotation are mutually exclusive
-  there because they share Excel's single area group. Categorical charts
-  (`categories:`) exist in the Excel edition only so far.
+**Read `econcharts_excel/CLAUDE.md` before working there.** A CLAUDE.md in a
+subfolder is not loaded when a session starts here, only once files inside it
+are read — so its rules (Office safety, VBA traps, build and check commands)
+are not in effect until you open it. It is the authority for that edition;
+this file deliberately doesn't repeat it, so the two can't drift apart.
+
+Shared between the editions: `GRAMMAR.md` (here) is the grammar for both, and
+keys only econcharts names — mark placement, deck furniture, sizes, fan
+strengths — use one name in both themes.
 
 ## Architecture
 `YAML → spec.py (pydantic, validate) → data.py (resolve to long df) +
