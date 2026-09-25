@@ -3,14 +3,15 @@
 This is the human-readable manifest of the WHOLE bundle: it freezes the app from
 `econcharts.spec`, then lays the user-facing files at the bundle root, then zips it.
 
-Run from a venv that has the deps + PyInstaller:
+Run from the project .venv (python.org Python, which carries PyInstaller via
+the dev extras):
 
-    python -m venv ship/venv
-    ship/venv/Scripts/python -m pip install . pyinstaller
-    ship/venv/Scripts/python ship/build.py
+    .venv/Scripts/python ship/build.py
 
-Note: build from a clean python.org venv when possible. On the anaconda-based dev
-machine PyInstaller also needs `…\\anaconda3\\Library\\bin` on PATH (for ffi-8.dll).
+PyInstaller bundles only what the app imports, so the dev tools in .venv
+(pytest, pytest-mpl) stay out of the exe. An earlier version of this note said
+to build from a separate ship/venv and to put Anaconda's Library/bin on PATH;
+both predate the move off Anaconda and no longer apply.
 
 Result:
     ship/dist/econcharts/        the bundle
