@@ -1,164 +1,340 @@
 # econcharts — CLAUDE.md
 
 ## Purpose
-Automated production of publication-quality economic charts from a minimal, substance-only spec. Form (style, color, layout) is pre-encoded; the user supplies only content, data, per-series chart type, and domain annotations. A narrow DSL for macro time-series charts — deliberately **not** a general grammar of graphics.
+Publication-quality economic charts from a minimal spec. The author supplies
+content, data, a chart type per series and domain annotations; every formal
+choice (colour, type, layout) is pre-encoded in a theme. A narrow DSL for macro
+time series — deliberately not a general grammar of graphics.
 
-## The organising analogy: econcharts is LaTeX for charts
-The spec is the `.tex`; the theme is the `.sty`; `GRAMMAR.md` is the language
-reference. It is **WYSIWYM** — the author declares what something MEANS and the
-system decides how it looks, which is why `period` frames the axis rather than
-the author setting xlim, why `mark: last` beats positioning a text box, and why
-`chrome` follows the size preset rather than the spec.
+## The organising idea: LaTeX for charts
+The spec is the `.tex`, the theme is the `.sty`, `GRAMMAR.md` is the language
+reference. It is WYSIWYM: the author says what something means and the system
+decides how it looks — `period` frames the axis instead of the author setting
+limits, `mark: last` instead of placing a text box, `chrome` follows the output
+size instead of the spec.
 
-**This is the axis along which the project grows**: a richer, more flexible
-LANGUAGE. It sits comfortably beside "narrowness is the feature" once the two
-axes are separated, and they are the same discipline pointed in two directions:
+The project grows along one axis: **more meaning, not more form knobs.** New
+vocabulary that lets an economist say something they previously had to
+hand-compute or hand-place is the point. A raw formatting option is drift;
+`style:` exists as the escape hatch (`\vspace{}`), and reaching for it is a
+smell. The test for any proposed key: *does it let the author say something
+they mean, or only something they want it to look like?* (`transform: yoy`
+passes; `linewidth: 2.5` does not.)
 
-* **More meaning — grow it.** LaTeX is an enormous language, and nearly all of
-  that size is semantic (`\section`, `\cite`, `\theorem`). New vocabulary that
-  lets an economist say something they could only previously hand-compute or
-  hand-place is the point of the project, not drift.
-* **More form knobs — refuse them.** Formatting lives in the `.sty` where the
-  author cannot reach it casually. `style:` is `\vspace{}`: it exists, it is the
-  escape hatch, and reaching for it is a smell rather than a feature.
+## Principles
+- **Spec, not code.** YAML, validated and resolved by deterministic Python,
+  rendered by a fixed engine. No AI in the render path.
+- **Substance over form.** Overrides are selections from theme-named sets
+  (`color: orange`, `line: dashed`), never raw values. `style:` is the one
+  raw-value escape hatch.
+- **Hand-authorable first.** An AI authoring layer, if ever, is separate and
+  built last.
+- **Out of scope for now (2026-09-19):** the domain registry (`recessions:
+  peru`, `target: inflation_pe`). On-strategy but not next — `registry/` stays
+  empty and `tests/test_spec.py` keeps asserting `recessions:` is refused. Don't
+  start it unprompted.
 
-The test for a proposed feature is therefore not "is it another option?" but
-**"does it let the author say something they mean, or only something they want
-it to look like?"** A `transform: yoy` is the first; a `linewidth: 2.5` is the
-second.
+## Working here
 
-## Core principles
-- **Spec, not code.** Charts are declared in YAML, validated and resolved by deterministic Python, rendered by a fixed engine. No code generation, no AI in the render path.
-- **Substance over form.** The spec carries content + domain semantics only. Every formal choice lives in the theme. Overrides are *selections* from theme-named sets (`color: orange`, `line: dashed`), never raw values; the chart-level `style:` block is the sole raw-value escape hatch.
-- **Narrowness is the feature.** Resist adding knobs — each new option is drift toward ggplot.
-- **Domain-semantic vocabulary.** Users write in an economist's terms, not graphics primitives — the richness described above is all of this kind. The registry that would resolve tokens like `recessions: peru` / `target: inflation_pe` is the canonical example and is **deliberately OUT OF SCOPE for the foreseeable future** (2026-09-19), not abandoned: it is on-strategy but not next. `registry/` stays empty; `tests/test_spec.py` still asserts `recessions:` is refused. Do not start it unprompted.
-- **Hand-authorable first.** The full pipeline works on hand-written specs; an AI authoring layer is a separate, optional, last-built extension.
+```
+pytest                                   # the suite
+pytest --mpl                             # + golden images (tests/test_render.py)
+pip install -e . --no-build-isolation    # reinstall after a version bump
+econcharts build examples/gallery.yaml --force   # -> examples/_gallery/ (gitignored)
+econcharts render spec.yaml -o out.png [--size S] [--backend svg|pdf]
+python ship/build.py                     # frozen exe -> ~/econcharts_ship.zip (last built 2026-06-16)
+```
 
-## Documents — who owns what
-- **GRAMMAR.md** — the **canonical, frozen spec grammar**: every key, vocabulary, and shorthand, including the batch document. When the spec surface changes, GRAMMAR.md is updated in the same change. **Do not duplicate its contents here.**
-- **manual.html** — the user manual shipped in the bundle (self-contained HTML).
-- **README.md** — public-facing overview + dev quickstart.
-- This file — design rationale, architecture, conventions, status.
+Use the project `.venv` (python.org Python 3.14, not Anaconda); first install
+is `pip install -e ".[dev]"`. Reinstall only when the version changes —
+`tests/test_version.py` catches stale metadata. **Always pass
+`--no-build-isolation`**: the default build isolation took 85 s and made the
+machine unresponsive (measured), because it builds a throwaway venv inside a
+OneDrive folder; without it the reinstall takes ~2 s.
 
-## Status (feature-complete core; version = pyproject.toml)
-Done: line/bar/area/stacked/fan (+ combinations, secondary axis), per-series marks with deterministic label placement, per-series bar `highlight` (emphasis recoloring), hline/vline/span/band annotations, adaptive daily→yearly date axis, authoritative `period` framing with `start`/`end` tokens, Excel + inline data, bbva theme, named export sizes, batch documents → figures + PPTX deck, CLI, frozen Windows exe (ship/), 192 tests incl. golden images.
+**Look at the output.** Render into the workspace — `examples/_gallery/`, or
+the Excel repo's gitignored `work/` — never a temp dir the user cannot open, and
+at `slides_half` unless asked otherwise. Structural tests and golden images
+cannot see most visual defects: the fan golden image (tolerance 20) passed a
+two-thirds alpha change at RMS 5.38 and band smoothing at RMS 0.68. When a
+change affects appearance, read the PNG, and where a property can be asserted
+geometrically (vertex counts, label boxes, axis limits), assert that instead.
 
-Backlog: the direction is a richer SPEC LANGUAGE (see the analogy above), so
-candidates are weighed by how much meaning they let an author express — not by
-how many charts they unlock. Nothing here is scheduled; build when asked.
-*Out of scope for now*: the domain registry (above). *Live candidates*: a
-semantic transform layer (`yoy`, `index`, `contribution`) so an economist states
-the operation instead of precomputing a column; spec reuse (LaTeX's
-`\newcommand`/`\input` — today every chart repeats itself and the batch header
-cascade is the only reuse there is); facets. *Infrastructure, not language*:
-gsheet/db resolvers (db hits tsdb-api at `db.simgol.net`), slim bundle (drop
-scipy — it is here for `PchipInterpolator` alone and costs 117MB in `.venv`
-plus another 49MB frozen into `ship/dist`); get the working copy out of
-OneDrive and have builds clean up after themselves (git tracks 2.6MB of the
-794MB here — the rest is gitignored and still syncing; written up in the notes
-repo's `roadmap.md` §3, since it applies to every repo under `OneDrive\BBVA\`). AI authoring layer **last**.
+Versioning: bump `pyproject.toml` with each shipped change — patch for fixes,
+minor for new spec surface.
 
-## Pipeline
-`YAML spec → pydantic validate (spec.py) → resolve data + frame (data.py, render._resolve_framed) → matplotlib render → png | svg | pdf` — and at the batch level: `batch.yaml → per-chart jobs (fail-soft) → figures + .pptx deck`.
+## Environment gotchas (Windows)
+- The repo lives under OneDrive, so every write is synced. Heavy regenerable
+  output (`.venv`, `ship/dist`, `ship/build`) is gitignored but still synced;
+  moving the working copy out of OneDrive is on the notes repo's `roadmap.md`
+  §3. An Excel/matplotlib export can occasionally land as a 0-byte file while
+  OneDrive holds it — re-run before concluding anything.
+- Working tree is **CRLF** (`.gitattributes`: LF in the repo, CRLF checked
+  out). An exact-string edit built with `\n` matches nothing in a CRLF file;
+  detect the file's convention first.
+- Write multi-line patches as script **files**, not inline `python -c`/heredoc
+  strings. Backticks inside a double-quoted shell string are command
+  substitution — once that ran `pip install` against the system Python — and
+  `\b`/`\x00` in heredocs have been mangled into literal bytes.
+- The console is cp1252: printing `≥`, `—` etc. from Python raises
+  `UnicodeEncodeError` even when the file write succeeded.
+- `importlib.metadata.version("econcharts")` run from the repo root is
+  shadowed by the gitignored `econcharts.egg-info/`; check installs from
+  another cwd.
 
-## Repo layout
+## Two editions
+`econcharts_excel/` is the VBA add-in edition: a **separate git repo with its
+own remote** (private), nested here and gitignored by this one. It is in scope
+from this session, has its own `CLAUDE.md`, and its commits go to its own
+remote, never into this repo.
+
+- Source of truth is `src/*.bas`, assembled into one `.xlam` by
+  `build/build.py`. Checks: `build/check.py` (lint + compile + self-test),
+  `build/smoke.py` (renders `examples/` in real Excel, leaves PNGs in
+  `dist/smoke/`), `build/gallery.py` (the full gallery), `build/share.py`
+  (the user bundle `dist/econcharts_share.zip`, verified outside the repo).
+  `Application.Run` does not compile the whole project, so code that has never
+  run is unproven — render it.
+- `GRAMMAR.md` here is the grammar for both. Keys only econcharts names (mark
+  placement, deck furniture, sizes, fan strengths) use one name in both themes.
+- Deliberate divergences: the Excel edition reads bare column names only (no
+  inline data); fan bands are polygonal because Excel ignores `Series.Smooth`
+  on area series; `fan`, `area` and a `band` annotation are mutually exclusive
+  there because they share Excel's single area group. Categorical charts
+  (`categories:`) exist in the Excel edition only so far.
+
+## Architecture
+`YAML → spec.py (pydantic, validate) → data.py (resolve to long df) +
+render._resolve_framed (frame) → matplotlib → png | svg | pdf`; at batch level
+`batch.yaml → per-chart jobs (fail-soft) → figures + .pptx deck`.
+
 ```
 econcharts/
-  spec.py          # pydantic v2 models, YAML load + validation (the spec boundary)
-  data.py          # DataResolver; ref grammar; period parsing; long-df contract
-  charttypes.py    # CHART_TYPES strategy classes (draw + mark dispatch per type) + primitives (PCHIP smoothing)
-  annotations.py   # hline / vline / span / band overlays
-  marks.py         # value-label placement primitives + cross-series line-mark rules
-  timeaxis.py      # adaptive date-axis granularity + tick planning (pure)
-  theme.py         # theme engine: loads themes/*.yaml; es-PE formatters; named sizes
-  render.py        # orchestration: spec -> Figure -> backend; framing; mark finalize
-  batch.py         # batch documents: header cascade -> ChartJobs, fail-soft run
-  deck.py          # rendered PNGs -> .pptx; plain sheet, or the BBVA slide (chrome)
-  cli.py           # econcharts build <batch.yaml> | render <spec.yaml> -o out.png
-themes/bbva.yaml   # reference house style — SINGLE SOURCE OF TRUTH for all form
-registry/          # (empty — future domain tokens: recessions, targets, events)
-examples/          # hand-written specs + datos.xlsx + gallery.yaml batch
-tests/             # 9 test files; golden images in tests/baseline/ (pytest-mpl)
-ship/              # frozen-exe workstream: econcharts.spec (PyInstaller), build.py, launch.py
+  spec.py        pydantic v2 models, YAML load + validation (the spec boundary)
+  data.py        DataResolver; ref grammar; period parsing; long-df contract
+  charttypes.py  CHART_TYPES strategy classes; PCHIP smoothing primitives
+  marks.py       value-label placement primitives + cross-series rules
+  annotations.py hline / vline / span / band
+  timeaxis.py    adaptive date-axis tick planning (pure, no drawing)
+  theme.py       theme engine: loads themes/*.yaml, es-PE formatters, sizes
+  render.py      spec -> Figure; framing; mark finalization; save
+  batch.py       batch documents: header cascade, fail-soft run
+  deck.py        PNGs -> .pptx (plain sheet or the BBVA slide)
+  cli.py         `econcharts build` / `econcharts render`
+  errors.py      the error hierarchy
+themes/bbva.yaml the house style — single source of truth for all form
+registry/        empty (see Principles)
+examples/        generic specs, datos.xlsx, gallery.yaml
+tests/           pytest; golden images in tests/baseline/
+ship/            PyInstaller manifest + build script
 ```
-`bbva source/` holds the original add-in (`*.xlam`) — **never commit it** (gitignored).
+`bbva source/` holds the original add-in and reference decks — never commit it.
+Worked examples built from real figures go in gitignored `work/` folders, not
+`examples/`, which holds generic fixtures only.
 
-## The spec
-The full grammar lives in **GRAMMAR.md** — consult it before writing or validating any spec. Essentials: `type` is required per series and is also the combination rule (bars dodge, stacked stack ±, areas fill+stack, lines overlay on top); `mark` is a **per-series field** (`mark: last`, `mark: {at, marker, value, text, decimals?}`), *not* an annotation; annotations today are exactly `hline` / `vline` / `span` / `band`. Canonical combo (stacked contributions + total line):
-```yaml
-title: PBI real — contribuciones al crecimiento
-subtitle: var. % anual, puntos porcentuales
-source: BCRP            # drawn as footnote bottom-left: "Fuente: BCRP"
-period: 2018Q1:end
-series:
-  - {name: Consumo,     data: "excel:pbi.xlsx#trim!c_consumo",   type: stacked}
-  - {name: Inversión,   data: "excel:pbi.xlsx#trim!c_inversion", type: stacked}
-  - {name: Sector ext., data: "excel:pbi.xlsx#trim!c_xn",        type: stacked}
-  - {name: PBI,         data: "excel:pbi.xlsx#trim!pbi_yoy",     type: line, mark: last}
-annotations:
-  - hline: 0
-```
+Contracts that everything else relies on:
+- **Resolver output is always a long DataFrame `[period, series, value]`**,
+  normalized once at the boundary.
+- **`charttypes.CHART_TYPES` is the single per-type dispatch point.** Each class
+  owns its drawing, its typed geometry (`BarGeom`/`AreaGeom`/`StackedGeom`) and
+  its mark placement; stacking and dodging go through the shared `GroupState`.
+  A new chart type is one new class, not parallel switches. `draw()` takes a `bands=None` carrier so the
+  draw loop never asks what type it holds.
+- **Mark placement records one `marks.PlacedMark` per label** (with optional
+  `SegmentFit` / `PerpSpec` / right-anchor) into a list that
+  `render._finalize_marks` iterates — no artist scanning. Mark artists are
+  `set_in_layout(False)`.
+- **Every date→x conversion goes through `render._periods_to_x` and friends**:
+  periods map to their midpoint; bars and vlines use period boundaries
+  (`AxisCoords`).
+- **Errors surface at the boundary that owns them, naming the key** — never a
+  raw matplotlib/pandas traceback: `SpecError`, `DataError`, `ThemeError`,
+  `RenderError`, `BatchError`.
+- `themes/` and `registry/` are data outside the package, resolved relative to
+  `econcharts/`. That works for editable installs and the frozen exe; a wheel
+  would not see them, and wheels are a non-goal.
 
-## Data resolution
-Ref grammar dispatched by prefix: `excel:<file>#<sheet>!<column>` (implemented); `gsheet:`/`db:` recognized, not implemented. Inline data: a list (aligns positionally to the `period` window) or a `{period: value}` map. The resolver contract is fixed: **always** a tidy/long DataFrame `[period, series, value]`, normalized wide→long once at the boundary. Workbook paths resolve against `data_root` (env `ECONCHARTS_DATA_ROOT`; the CLI sets it to the spec/batch file's directory). Excel period column defaults to the sheet's first column; freq is inferred (string tokens, bare years, or datetimes via median spacing).
+## Design rationale
 
-## Time & framing
-- Internal index = pandas Periods with explicit freq (D/Q/M/Y), one freq per chart.
-- `period` is the **authoritative axis frame**: the chart spans exactly that window (xlim + ticks) even where a series has no data; data outside is clipped; no `period` → the data's own range. Either bound may be the data-driven token `start`/`end` (sample min/max across all dated series — ≠ any one series' own first/last, which is what `mark: last` means). `end` forces the two-phase resolve in `render._resolve_framed`.
-- **Every date→axis-x conversion goes through `render._periods_to_x` and friends** — periods map to their *midpoint*; bars/vlines use period *boundaries* (see `AxisCoords`). Never mix strings / Timestamps / mpl-dates downstream.
-- `timeaxis.plan_ticks` picks the display granularity adaptively (finest that fits the width; thin every-other before coarsening) — daily data over a decade labels in years.
-- es-PE formatting (month abbrevs, `,` decimal / `.` thousands) lives in `theme.py` — never in the spec.
+### The spec
+`GRAMMAR.md` is canonical and frozen — read it before writing or judging a
+spec, update it in the same change as any spec-surface change, and don't copy
+it here. Two things worth knowing: `type` is per series and is also the
+combination rule (bars dodge, `stacked` stacks ±, areas fill and stack, lines
+on top), and `mark` is a per-series field, not an annotation.
 
-## Theme
-- **Which keys belong in a theme, and which in code.** If the HOST already names it — stroke weights, type sizes, gridline colour — say it in the host's own language (`rc:` here, a `format.series:`/`format.axis:` tree in the Excel edition); a third name buys nothing. If only **econcharts** names it — mark placement, deck furniture, named physical sizes, tick planning — use ONE name in both editions, because there the alternative is inventing the same concept twice. Every key the two themes already share is of the second kind. `Theme.val("format.marks.spread_gap", default)` reads them; typed fields remain the interface for the long-standing keys.
-- **A theme carries preferences, not invariants.** The test: *would a different value give a different house style, or broken output?* The label-overlap floor (pitch ≥ one text height) and `PERP_SLOPE_THRESHOLD` (~17°) are geometry and live in code; `spread_gap`, `perp_gap` and `leader_after_pitches` are house style and live in `format.marks`. **A fan's shade ladder is the same split, and its floor is measured.** `soft`/`medium`/`strong` live in `fan.strengths` because the house decides how emphatic a band looks, but whether the faintest band can be SEEN is not a preference. It is set with CIEDE2000 against the white the transparent PNG lands on: `soft` at 0.20 already put `lightblue` at dE00 7.0, past the 5.0 that reads as "clearly visible" on the standard scale (<1 imperceptible, 1—2 close observation, 2—5 at a glance, >5 clearly visible), where the original 0.12 reached only 4.5; the shipped 0.25 clears it with room. Measured perceptibility sits near dE00 2.3, so this is ~3x real perceptibility. **Use CIEDE2000, never CIE76**: CIE76 overstates blue differences ~2.7x (9.18 vs 3.44 on the Sharma reference pairs) and every shade colour here is blue, so CIE76 calls a band visible that is not. **WCAG 1.4.11 was tried first and is the WRONG instrument**, and the reductio is worth keeping: its 3:1 against adjacent colour is an accessibility floor for moderately low vision, and measured against it **9 of the 12 house series colours fail as a SOLID mark** (`lightblue` is series colour #2 at 1.79:1, on the second line of most gallery charts, which are perfectly legible). A standard that condemns the palette is not answering "can this be seen". It is also unreachable (no alpha brings a pale fill to 3:1), so "raise alpha until it complies" never terminates. An earlier `MIN_SHADE_DELTA_E = 5.0` in CIE76 shipped and was reverted: right shape, wrong formula, number reasoned rather than found. The gridline was tried as an anchor and rejected by measurement (a 0.5pt hairline needs far more contrast than a large area).
-- A theme = one `themes/<name>.yaml` (single source of truth): named `colors` table, series `cycle`, `annotations` vocabulary, `date_labels` patterns, matplotlib `rc` params. `theme.py` is the generic engine — it resolves color NAMES→hex everywhere and applies rc in memory (no `.mplstyle` on disk).
-- **Never hard-code a color in renderers** — pull from the active theme.
-- `bbva` is the reference theme; primary `#001391`, extracted from the official `Addin_BBVA_2025.xlam` (May 2025, "Version 3").
-- **Type and stroke follow the TARGET, not one global value** (`size_styles.<size>`, applied by `Theme.rc_for`). The presets are four destinations, not four scalings of one chart: a Word figure is read at arm's length at 1:1, a slide is projected and read from metres away, so it needs BIGGER absolute type and a thicker stroke even though the figure is larger — 7pt/2pt for the Word presets, 10pt/3pt for the slide ones, as the add-in's `LetFontSizeAxes`/`LetLineSizeAxesMarker` do. The title is deliberately not in that table. Nothing scales on its own (figure in mm, type in pt, both absolute), so larger type buys its room from the plot area.
-- Anything that ESTIMATES from a font size must read the live one: `_legend_columns` assumed 8pt while the legend was set at 10 and let a three-entry row run off the figure. `timeaxis.max_labels_for`'s labels-per-inch is calibrated at the base size and is conservative enough at 10pt (measured across the gallery: no date labels overlap).
-- **Named output sizes** (the add-in's export presets, physical mm): `word_half` 75×60, `word_full` 117×60, `slides_half` 85×70 (**default — use this when showing examples**), `slides_full` 140×75. Size and backend are render-time choices (one spec → many targets), not spec fields.
+### Data
+Refs dispatch by prefix: `excel:<file>#<sheet>!<column>` is implemented;
+`gsheet:`/`db:` are recognized and refused. Inline data is a list (aligned to
+the `period` window) or a `{period: value}` map. Workbook paths resolve against
+`data_root` (env `ECONCHARTS_DATA_ROOT`; the CLI sets it to the spec's folder).
+Frequency is inferred once per chart.
 
-## Marks & label placement
-matplotlib's weak spot is label collision; econcharts handles it **deterministically** (no adjustText — it was dropped):
-- **`fan` is a central path plus nested intervals — one line and N fills.** Each interval is a fill BETWEEN TWO CURVES (`fill_between(x, lo, hi)`), which is why `FanType` draws its own fills instead of routing through `AreaType`: an area fills from a baseline and stacks on `GroupState.area_cum`, so a fan sent that way would stack with the data instead of sitting behind it at `Z_FAN = 0.5`. Because `lo` and `hi` are independent refs, a SKEWED distribution needs no special case, and there is no "forecast" concept anywhere in the grammar — leading nulls leave the fills empty over history, the same idiom `formato_lineas.yaml` uses for a dashed projection, so a fan over the whole sample (an estimate with confidence bands) is the identical object. **The shading is a RAMP the theme names, and the bands are drawn as non-overlapping RINGS to make that possible.** `soft`/`medium`/`strong` in `fan.strengths` are the levels of shade WITHIN one fan — outermost always `soft` (0.25), innermost always `strong` (0.65), anything between spaced evenly — so a fan reads the same way whether the author declared two bands or five, and `medium` (0.45) is the MIDPOINT by construction rather than a free third value, or the name would describe a shade no fan ever draws. Rings are why the ladder can be stated at all: each band is filled only between itself and the next one in, never as a full band over its neighbours, so it composites at exactly its named alpha. The first implementation nested full fills and let them COMPOUND, which looks like a ramp but is not one a theme can name (the visible shade depended on the interval count) and drove three intervals at 0.65 to ~0.96 effective, swallowing the central path. `shade` names a theme colour for the fills so they can recede from the central path rather than restate it; leaving it unset uses the series colour, which on a dark series reads as muddy lavender and is the weaker default. **Every ring edge is PCHIP-smoothed**, like the central path and like an `area` layer: the fan shipped with a 320-point fitted path inside 15-point polygons, so on a curved series the stroke visibly left its own innermost band between observations. The trap is that `_smooth_onto` bridges NaNs, so fitting the raw column extrapolates a confident-looking band back across the history the forecast does not cover — `_smooth_ring` restricts the fit to the span where BOTH edges are finite, the same slice `draw_line` takes. A golden image cannot police any of this: smoothing the edges moved 1% of the pixels and scored RMS 0.68 against a tolerance of 20, passing both the bug and the fix, so the guards in `tests/test_fan.py` count VERTICES instead. `shade_strength` now has exactly ONE job: a single interval has no ramp to span, so it is the lone case the spec picks the rung for. Marks are NOT fan-aware: a fan joins the same `line_marks` list as any line, so it gets the whole placement pipeline and the cross-series endpoint rules, but placement sees the central path's `y` only and never the band edges, so a label may sit on a band. Pale fills behind the label make that right by default rather than by design. The fills are **anchored to the last period with no interval**, where `lo` and `hi` collapse onto the central path — without it the bands start at full width and the vertical edge reads as a step in the data. Intervals are sorted widest-first by the declared `conf` so spec order is not load-bearing, and their measured widths are then checked against that order: a 90% interval that does not contain the 60% one is a mispointed column, and the narrower fill would simply vanish underneath where no reader could see it. The interval refs resolve under synthetic NUL-separated names (`charttypes.fan_band_name`) so the long-df resolver contract holds for them and they are framed and clipped with everything else; `draw()` takes a `bands=None` carrier so the draw loop never has to ask what type it is holding.
-- **`charttypes.CHART_TYPES` is the single per-type dispatch point**: each strategy class owns its drawing (stacking/dodging via the shared `GroupState`), its typed geometry (`BarGeom`/`AreaGeom`/`StackedGeom`), and its mark placement — adding a chart type (e.g. `fan`) is one new class, not parallel switches across modules.
-- Placement primitives in `marks.py`: line → dot + label on the outer side of the curve; bar → above (below if negative); area → above the curve; stacked → centered in the segment with auto white/navy contrast.
-- Cross-series rules in `draw_line_marks`: at a shared x the lowest goes below, rest above; 3+ series at the last point go right of the endpoint. **Exception at the last point**, where a line has only ONE neighbour and the incoming stroke occupies the side it descends from: with exactly two marks there, `marks.flip_end_label_onto_clear_side` drops the upper label below when its own line falls into the point — judged geometrically (`intrusion = fall x min(1, halfLabelWidth / distance to the neighbour)`), and refused when the two endpoints are closer than a label pitch. **A LONE mark's window is its own label, not its two neighbours** (`marks.clear_lone_marks`): on a dense chart the label is wider than the gap between points, so the pair that chose its side says nothing about what it has to clear — an 86-point series in an 85mm panel gives ~2.3pt per point against a ~28pt label. It re-picks the side by which one the curve intrudes into less across the label's width, and places it past the curve's excursion there rather than a fixed gap from the point; it then retires the `PerpSpec` so the perpendicular pass skips it. The density gate needs no constant — if no other point falls under the label there is nothing to weigh and the existing answer stands, which is every sparse chart. It applies at the LAST point too: the endpoint rules all want two marks or more, so a single-series chart's final label is otherwise unowned. Found in the Excel edition against real decks, not by the suite — `tests/test_marks_dense.py` is the fixture the suite lacked. Each value axis is drawn and finalized on its OWN `placed` list, which is blind across axes, so `marks.decollide_across_axes` runs last and separates end labels belonging to different axes — only when they actually overlap. **The endpoint rule is a mirror pair and is one function** (`_end_stroke_intrudes`): the upper label of a series FALLING into its last point, and the lower label of one RISING into it. Once the sign is factored out the geometry is identical; the Excel edition met these as two rules months apart before seeing they were the same one. A series cannot do both, but both move into the same gap between the two endpoints, so only one runs. **A label may also not sit on ANOTHER label of the same line** (`marks.decollide_neighbour_marks`): every other rule here concerns a label and the curve, and nothing else in the suite would see a label on its neighbour. It reflects the later annotation's offset through its own point — cheaper than re-placing, and checked rather than trusted: the flip is kept only if the result is clear of EVERY other label of that series, since checking only the pair is how moving one label off its neighbour lands it on a third. It fires rarely, and the shape that needs it is specific — on a wandering curve two nearby marks get different windows and `clear_lone_marks` separates them for free; it takes a FLAT stretch with equal values (the real deck's two labels both reading `34.8`) for both windows to come out symmetric, both labels to go above, and land on each other. `PlacedMark.series_key` exists only so this rule can ask "same line?" of a flat list.
-- `render._finalize_marks` post-processes after layout: hides stacked labels that don't fit their segment, offsets line labels perpendicular to the local slope (constant visual gap), separates cramped right-labels **isotonically** (`marks.separate`, pool-adjacent-violators: only runs that actually collide are pooled, each centred on its own mean, so an uncrowded label keeps its own height), draws a leader only for a label that travelled at least `marks.LEADER_AFTER_PITCHES` of a label height, then grows axis limits (capped) so nothing clips.
-- Placement appends one `marks.PlacedMark` record per artist (with optional `SegmentFit`/`PerpSpec`/right-anchor) to a list render threads through — the **explicit contract** `_finalize_marks` iterates (no artist scanning or attribute smuggling). Mark artists are `set_in_layout(False)` so constrained layout ignores them.
+### Time and framing
+- Internally pandas Periods, one frequency per chart.
+- `period` is the authoritative frame: the axis spans exactly that window even
+  where data is missing, and data outside is clipped. Either bound may be
+  `start`/`end` (min/max across all dated series — not any one series' own
+  last point, which is what `mark: last` means); `end` forces the two-phase
+  resolve in `render._resolve_framed`.
+- `timeaxis.plan_ticks` picks the finest granularity that fits, thinning
+  every-other before coarsening. `timeaxis.max_labels_for` is calibrated at the
+  base font size and measured conservative at 10pt.
+- es-PE formatting lives in `theme.py`, never in the spec.
 
-## Renderer & output
-- One `render(spec, size) -> Figure`; `save(fig, out, backend)` infers the backend from the suffix. **No `bbox_inches="tight"`** — the figure must save at its exact named physical size; constrained layout fits content *within* the fixed figsize instead.
-- `png` (Google Slides): dpi=300, transparent. `svg`/`pdf` are DONE, not merely registered: `_BACKEND_RC` applies `svg.fonttype: "none"` (text stays selectable and LaTeX-matchable) and `pdf.fonttype: 42` (fonts embedded, no Type-3 bitmaps), inside an `rc_context` at savefig time so the settings never leak across a batch run. This file listed them as backlog long after they shipped.
-- Annotation mapping: `span`→`axvspan`, `band`→`axhspan` (label auto-placed in the widest clear stretch), `vline`→`axvline`, `hline`→`axhline`.
-- Layering: fills behind bars behind lines (`Z_AREA < Z_BAR < Z_LINE`), annotation fills below / vlines above series, labels on top.
+### Theme
+- One `themes/<name>.yaml`: colour table, series `cycle`, annotation vocabulary,
+  date label patterns, matplotlib `rc`. `theme.py` resolves colour names and
+  applies rc in memory. Never hard-code a colour in a renderer.
+- **Preferences in the theme, invariants in code.** Ask: would a different
+  value give a different house style, or broken output? House style
+  (`format.marks.spread_gap`, `perp_gap`, `leader_after_pitches`, fan
+  strengths) is read with `Theme.val(...)`; geometry (the label-overlap floor,
+  `PERP_SLOPE_THRESHOLD`) stays in code.
+- If the host already names a setting (stroke weight, type size, gridline
+  colour), use the host's name (`rc:`); if only econcharts names it, use one
+  name in both editions.
+- `bbva` is the reference theme; primary `#001391`, from the official
+  `Addin_BBVA_2025.xlam`.
 
-## Batch & deck & CLI
-- A batch = orchestration header (`data_root`, `output_dir`, `render` subset) + inheritable defaults (`theme`, `size`, `backend`, `date_label`: header → chart override) + `charts` keyed by `id`. Header validated up front; chart bodies validated lazily so one bad chart can't sink the batch (**fail-soft** — `run_jobs` records per-chart errors and continues). Paths resolve relative to the batch file. Outputs `<id>_<yyyymmdd>.<backend>`.
-- **`chrome` decides where a chart's words go, and it is a property of the SIZE preset, not a spec key** (`size_styles.<size>.chrome`). `chart` — the four original presets — draws title, units line and source inside the figure and the deck is a plain sheet of figures at true physical size. `slide` — the two 16:9 presets — renders the chart **bare** and `deck.py` sets its caption above a rule on a white panel, over a light-grey canvas, with a title placeholder, the source as a footnote and a page number. That is how BBVA decks are actually built (every chart measured in *Sistema Bancario* has no title of its own). The same YAML renders either way; only the surface the words land on moves.
-- The furniture is **drawn, not inherited from a .pptx** — the BBVA template is an asset this repo does not carry — so every number lives in the theme under `deck.slide`, in millimetres, measured off real slides. A long caption **shrinks** to `caption.min_size` rather than moving the rule, whose distance below the panel top is the house style. matplotlib measures text; python-pptx cannot, so the fit is estimated from character count (the Excel edition asks PowerPoint directly).
-- `econcharts build batch.yaml [--only ids] [-o DIR] [--force]` renders all + assembles a PPTX deck via `deck.py`; asks once before overwriting. `econcharts render spec.yaml -o out.png [--size] [--backend]` is the single-chart shortcut. Non-zero exit if anything failed.
+### Sizes and chrome
+Named physical sizes in mm (w × h), the add-in's export presets:
+`word_half` 75×60, `word_full` 117×60, `slides_half` 85×70 (default),
+`slides_full` 140×75, `slides16_9_half` 100×80, `slides16_9_full` 218×80. Size
+and backend are render-time choices, not spec fields.
+- Type and stroke follow the *destination*, not a scale factor
+  (`size_styles.<size>`, applied by `Theme.rc_for`): 7pt/2pt for Word, 10pt/3pt
+  for slides — a projected slide needs bigger absolute type. Nothing scales on
+  its own; larger type takes its room from the plot.
+- Anything estimated from a font size must read the live size
+  (`_legend_columns` is passed `_legend_fontsize()` for this reason).
+- `chrome` is a property of the size preset. `chart` (the four original sizes)
+  draws title, subtitle and source inside the figure. `slide` (the two 16:9
+  sizes, which match real deck charts at ~100×80) renders the chart bare and
+  `deck.py` sets the words on the slide — how BBVA decks are actually built.
 
-## Ship (frozen exe)
-`ship/econcharts.spec` is the checked-in PyInstaller manifest (bundles `themes/`, pptx templates; excludes GUI toolkits); `ship/build.py` freezes, lays user-facing files (examples, manual.html, run.bat) at the bundle root, and zips to `~/econcharts_ship.zip`. Build from the project `.venv` (clean python.org Python — not Anaconda).
+### Marks and label placement
+Placement is deterministic (no adjustText). Primitives in `marks.py`: line →
+dot plus label on the outer side of the curve; bar → above (below if negative);
+area → above the curve; stacked → centred in the segment with contrast colour.
 
-## Conventions
-- Python ≥3.11 (dev env: project `.venv`, Python 3.14, mpl 3.11 — install with `pip install -e ".[dev]"`); pydantic v2; matplotlib only for rendering; Agg backend in tests. **Reinstall with `--no-build-isolation`.** Measured: the plain `pip install -e .` took **85s+ and made the machine unresponsive**; with `--no-build-isolation` the same install takes **2.3s**. The entire cost is PEP 517 build isolation standing up a throwaway venv and installing setuptools into it on every run, and setuptools is already in `.venv`, so skipping it changes nothing about the result. It bites harder here than it would elsewhere because the project sits in **OneDrive** (794MB; `.venv` alone is 416MB across 16k files carrying the `ReparsePoint` placeholder attribute), so every file the isolated build writes is scanned and synced while it runs. A reinstall is only needed when the version changes, which `tests/test_version.py` catches.
-- **Errors surface at the right boundary naming the offending key — never a raw matplotlib/pandas traceback.** Spec problems → `SpecError`; data → `DataError`; theme → `ThemeError`; render → `RenderError`; batch header → `BatchError`.
-- One responsibility per module, per the layout above. `timeaxis` stays pure (no drawing).
-- themes/ and registry/ are data OUTSIDE the package, resolved relative to `econcharts/` — works for editable installs and the frozen exe (`--add-data`); a plain wheel would not see them, and wheels are a non-goal.
-- No browser/interactive output; no AI in the render path.
+Cross-series rules, applied in this order in `draw_line_marks` and
+`_finalize_marks`:
+1. At a shared x the lowest label goes below, the rest above; three or more at
+   the last point go to the right of the endpoint.
+2. **Endpoint pair** (`flip_end_label_onto_clear_side`, one mirror-symmetric
+   rule in `_end_stroke_intrudes`): with exactly two marks at the last point,
+   a label moves to the other side when its own line arrives from that side —
+   judged geometrically, refused when the endpoints are closer than a label
+   pitch.
+3. **Lone marks** (`clear_lone_marks`): on dense charts a label is wider than
+   the gap between points, so its side is chosen by which side the curve
+   intrudes on less across the label's own width, placed past the excursion.
+   No constant gates it — on sparse charts nothing falls under the label and
+   the earlier answer stands. Applies at the last point too.
+   `tests/test_marks_dense.py` is its fixture.
+4. **Same-line neighbours** (`decollide_neighbour_marks`): a label may not sit
+   on another label of the same series; the later one is reflected through its
+   point, kept only if clear of every other label of that series. Needs a flat
+   stretch of equal values to fire. `PlacedMark.series_key` exists for this.
+5. Stacked labels that don't fit their segment are hidden; line labels get a
+   perpendicular offset along the local slope; isotonic separation of cramped
+   right-labels (`marks.separate`, pool-adjacent-violators); a leader only for
+   a label moved at least `leader_after_pitches` label heights; then axis
+   limits grow (capped) so nothing clips.
+6. Each value axis is finalized on its own `placed` list, so
+   `decollide_across_axes` runs last to separate end labels from different
+   axes when they actually overlap.
+
+### Fan charts
+A fan is a central path plus nested intervals: one line and N fills. The
+grammar (`intervals`, `conf`, `shade`, `shade_strength`) is in `GRAMMAR.md`;
+the implementation facts that aren't:
+- Fills are drawn by `FanType` itself with `fill_between`, not through
+  `AreaType` (which stacks on `GroupState.area_cum`), at `Z_FAN`, below
+  everything.
+- **Bands are non-overlapping rings**, each filled only between itself and the
+  next one in, so each composites at exactly its named alpha. The ramp runs
+  `soft` (outermost) → `strong` (innermost), interpolated for any count, with
+  `medium` as the midpoint. Rings are also what the Excel edition's stacked
+  areas consume.
+- Every ring edge is PCHIP-smoothed on a shared grid (`_smooth_ring`),
+  restricted to the span where both edges are finite — `_smooth_onto` bridges
+  NaNs and would otherwise extrapolate a band back over history.
+- Fills open from the last period with no interval, where `lo` and `hi`
+  collapse onto the path. Intervals sort widest-first by `conf`, and nesting is
+  checked against the data.
+- Interval refs resolve under synthetic names (`charttypes.fan_band_name`) so
+  they obey the long-df contract and are framed and clipped like any series.
+- Marks are not fan-aware: the central path joins the ordinary line-mark
+  pipeline and sees only its own `y`.
+- The visibility floor for `soft` was set with **CIEDE2000** against white
+  (0.25 puts `lightblue` at ΔE00 > 5, "clearly visible").
+
+### Output and deck
+- `render(spec, size) -> Figure`; `save()` infers the backend from the suffix.
+  No `bbox_inches="tight"` — the figure must keep its exact physical size;
+  constrained layout fits content inside it.
+- PNG at 300 dpi, transparent. SVG keeps text as text (`svg.fonttype: none`),
+  PDF embeds fonts (`pdf.fonttype: 42`), both via `_BACKEND_RC` inside an
+  `rc_context` so settings don't leak across a batch.
+- Layering: `Z_FAN < Z_AREA < Z_BAR < Z_LINE`; annotation fills below series,
+  vlines above, labels on top.
+- Annotations: `hline`→`axhline`, `vline`→`axvline`, `span`→`axvspan`,
+  `band`→`axhspan` with its label placed in the widest clear stretch.
+- A batch is an orchestration header (`data_root`, `output_dir`, `render`)
+  plus inheritable defaults (`theme`, `size`, `backend`, `date_label`) plus
+  `charts` keyed by `id`. The header is validated up front; chart bodies
+  lazily, so one bad chart doesn't sink the batch (`run_jobs` records per-chart
+  errors and carries on). Outputs are `<id>_<yyyymmdd>.<backend>`.
+  `econcharts build` takes `--only ids`, `-o DIR` and `--force` (it otherwise
+  asks once before overwriting) and exits non-zero if anything failed.
+- Slide furniture is drawn, not inherited from a .pptx: every number lives in
+  the theme under `deck.slide`, in mm measured off real slides. A long caption
+  shrinks to `caption.min_size` rather than moving the rule. python-pptx can't
+  measure text, so fit is estimated from character count.
+
+## Rejected approaches (don't retry)
+- **WCAG 1.4.11 as a visibility test** — an accessibility floor, not a
+  visibility one: nine of twelve house colours fail it as solid marks, and no
+  alpha brings a pale fill to 3:1.
+- **CIE76 for colour difference** — overstates blue differences ~2.7×, and
+  every shade colour here is blue. Use CIEDE2000.
+- **The gridline as a visibility anchor** — a 0.5 pt hairline needs far more
+  contrast than a filled area.
+- **Nested full fills for fan bands** — alphas compound, so the visible shade
+  depends on the interval count and three strong bands go opaque.
+- **adjustText** — replaced by deterministic placement.
+- **`bbox_inches="tight"`** — breaks the exact physical size.
 
 ## Testing
-- `pytest` from the project `.venv` (~290 tests). Golden images per chart type in `tests/baseline/` via `pytest-mpl` (`pytest --mpl`). Schema tests assert malformed specs fail at the right key.
-- **`tests/test_label_overlap.py` asserts that no mark label sits on another**, over every example spec at three named sizes. That question had never been asked: every other check is about a label and the *curve*, or about structure and counts, and the golden images sat stale for months without anyone noticing — a stale baseline cannot report a collision anyway. The Excel edition added the same check and it found eight overlapping pairs immediately, on charts that had been looked at all day. Python comes out at **zero**, so it is a hard assertion rather than the budget that edition needs, and staying at zero is the thing worth defending.
-- `conftest.py` at the repo root sets Agg + points `ECONCHARTS_DATA_ROOT` at `examples/`.
+- Golden images live in `tests/baseline/` (`pytest --mpl`). Their tolerance is
+  loose, so treat them as a check on layout and draw order, not on colour or
+  shading.
+- `tests/test_label_overlap.py` asserts that **no mark label overlaps another**
+  across every example spec at three sizes. Python is at zero, so it is a hard
+  assertion — keep it at zero. (The Excel edition runs the same check against a
+  budget.)
+- Schema tests assert that malformed specs fail at the right key.
+- `conftest.py` sets Agg and points `ECONCHARTS_DATA_ROOT` at `examples/`.
+
+## Backlog
+Direction is a richer spec language; candidates are weighed by how much meaning
+they add. Nothing is scheduled — build when asked.
+- Language: port categorical charts to Python; a semantic transform layer
+  (`yoy`, `index`, `contribution`); spec reuse (LaTeX's `\newcommand`/`\input`
+  — today only the batch header cascade reuses anything); facets.
+- Infrastructure: gsheet/db resolvers (db = tsdb-api at `db.simgol.net`); drop
+  scipy (used only for `PchipInterpolator`; ~166 MB across `.venv` and the
+  frozen bundle); move the working copy out of OneDrive and have builds clean
+  up after themselves (notes repo `roadmap.md` §3).
+- AI authoring layer: last.
 
 ## Dependencies
-Core: `matplotlib, pandas, numpy, scipy` (PCHIP smoothing only), `pydantic>=2, pyyaml, openpyxl, python-pptx`. (`adjustText` is listed in pyproject but unused — placement is deterministic; drop it when touching deps.) Later resolvers: `gspread, google-api-python-client, requests`.
+`matplotlib, pandas, numpy, scipy` (PCHIP only), `pydantic>=2, pyyaml,
+openpyxl, python-pptx`. Dev extras: `pytest, pytest-mpl, pyinstaller`.
 
 ## Non-goals
-- Not a general grammar of graphics (not ggplot / Vega). Not interactive / web.
-- No per-chart styling beyond theme-named selections + the `style:` escape hatch.
-- No AI in the render path. No wheel distribution (the ship is a frozen exe).
+Not a general grammar of graphics. No interactive or web output. No per-chart
+styling beyond theme selections and `style:`. No AI in the render path. No
+wheel distribution — the ship is a frozen exe.
