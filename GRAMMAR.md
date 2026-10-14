@@ -23,7 +23,7 @@ with errors naming the offending key.
 |-----|------|-------|
 | `title` | string? | chart title |
 | `subtitle` | string? | below the title |
-| `source` | string? | drawn as a small footnote at the bottom left (`"Fuente: BCRP"`); omit to suppress |
+| `source` | string? | the source only, without the "Fuente:" prefix: `source: BCRP` is drawn as *Fuente: BCRP* (the theme adds the prefix, so `source: "Fuente: BCRP"` prints it twice); a small footnote at the bottom left; omit to suppress |
 | `period` | string? | the axis frame / window — see **Period** |
 | `theme` | string | default `bbva` |
 | `ylabel` | string? | primary y-axis label |
