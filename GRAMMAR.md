@@ -35,7 +35,11 @@ with errors naming the offending key.
 | `annotations` | list | optional — see **Annotations** |
 | `style` | map | escape hatch: raw rcParam / axis overrides. Rarely touched. |
 
-`id` is added at the batch level (output identity); a standalone chart doesn't need it.
+`id` is the chart's identity. In a Python **batch** it is required and unique (it names the
+output file); a standalone Python chart doesn't need one. In the **Excel edition** every chart
+needs one, always: ASCII letters, digits and `_` only, unique across the whole workbook,
+case-insensitively — it names the chart object, its run-log row and its slide text, and the
+add-in finds all three by it (since v0.14.0).
 
 ## Series (list item)
 | key | type | notes |
